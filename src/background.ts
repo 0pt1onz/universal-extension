@@ -1,9 +1,9 @@
-export {}
+export { }
 
 const TMDB_TOKEN = process.env.PLASMO_PUBLIC_TMDB_TOKEN
 const tabIntroData = new Map<
   number,
-  { status: string; [key: string]: unknown }
+  { status: string;[key: string]: unknown }
 >()
 const INTRODB_API =
   process.env.PLASMO_PUBLIC_INTRODB_API || "https://api.theintrodb.org/v1"
