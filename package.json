@@ -1,0 +1,54 @@
+{
+  "name": "universal-extension",
+  "displayName": "TIDB",
+  "version": "1.0.0",
+  "description": "A browser extension to skip intros, recaps, and credits with TheIntroDB.",
+  "author": "TheIntroDB",
+  "scripts": {
+    "dev": "plasmo dev",
+    "build": "plasmo build",
+    "build:chrome": "plasmo build --target=chrome-mv3",
+    "build:firefox": "plasmo build --target=firefox-mv3",
+    "package": "plasmo package",
+    "package:firefox": "plasmo package --target=firefox-mv3",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "plasmo": "0.90.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@ianvs/prettier-plugin-sort-imports": "4.1.1",
+    "@types/chrome": "0.0.258",
+    "@types/node": "20.11.5",
+    "@types/react": "18.2.48",
+    "@types/react-dom": "18.2.18",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "prettier": "3.2.4",
+    "typescript": "5.3.3",
+    "typescript-eslint": "^8.54.0"
+  },
+  "manifest": {
+    "browser_specific_settings": {
+      "gecko": {
+        "id": "{8c4e2f1a-5b9d-4e3a-a7f2-1d6c8b0e9a3f}",
+        "strict_min_version": "109.0"
+      }
+    },
+    "host_permissions": [
+      "https://*/*"
+    ],
+    "permissions": [
+      "storage",
+      "activeTab"
+    ]
+  }
+}
