@@ -10,8 +10,12 @@ function cleanTitle(title: string): string {
     .trim()
 }
 
-function parseSeasonEpisodeFromBody(bodyText: string): { season: number | null; episode: number | null } {
-  const short = bodyText.match(/S(\d+)\s*[E:]\s*E?(\d+)/i) || bodyText.match(/(\d+)x(\d+)/i)
+function parseSeasonEpisodeFromBody(bodyText: string): {
+  season: number | null
+  episode: number | null
+} {
+  const short =
+    bodyText.match(/S(\d+)\s*[E:]\s*E?(\d+)/i) || bodyText.match(/(\d+)x(\d+)/i)
   if (short) {
     return { season: parseInt(short[1], 10), episode: parseInt(short[2], 10) }
   }
@@ -35,7 +39,8 @@ export function extractNetflix(
   const title = cleanTitle(documentTitle)
   const { season, episode } = parseSeasonEpisodeFromBody(bodyText)
 
-  const type: "tv" | "movie" = season != null || episode != null ? "tv" : "movie"
+  const type: "tv" | "movie" =
+    season != null || episode != null ? "tv" : "movie"
   const tmdb_id: number | null = null
 
   return {
@@ -46,6 +51,5 @@ export function extractNetflix(
     episode,
     episode_id: null,
     currentTime
-  };
+  }
 }
-

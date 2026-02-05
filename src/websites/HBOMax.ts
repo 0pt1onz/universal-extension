@@ -9,11 +9,17 @@ function cleanTitle(title: string): string {
     .trim()
 }
 
-function parseSeasonEpisodeFromBody(bodyText: string): { season: number | null; episode: number | null } {
-  const short = bodyText.match(/S(\d+)\s*[E:]\s*E?(\d+)/i) || bodyText.match(/(\d+)x(\d+)/i)
-  if (short) return { season: parseInt(short[1], 10), episode: parseInt(short[2], 10) }
+function parseSeasonEpisodeFromBody(bodyText: string): {
+  season: number | null
+  episode: number | null
+} {
+  const short =
+    bodyText.match(/S(\d+)\s*[E:]\s*E?(\d+)/i) || bodyText.match(/(\d+)x(\d+)/i)
+  if (short)
+    return { season: parseInt(short[1], 10), episode: parseInt(short[2], 10) }
   const long = bodyText.match(/Season\s+(\d+)[,\s]+Episode\s+(\d+)/i)
-  if (long) return { season: parseInt(long[1], 10), episode: parseInt(long[2], 10) }
+  if (long)
+    return { season: parseInt(long[1], 10), episode: parseInt(long[2], 10) }
   return { season: null, episode: null }
 }
 
@@ -30,7 +36,9 @@ export function extractHBOMax(
   const pageTitle = cleanTitle(documentTitle)
   const { season, episode } = parseSeasonEpisodeFromBody(bodyText)
 
-  const pathParts = new URL(url, "https://max.com").pathname.split("/").filter(Boolean)
+  const pathParts = new URL(url, "https://max.com").pathname
+    .split("/")
+    .filter(Boolean)
   const section = pathParts[0]
   const isVideo = section === "video"
   const type: "tv" | "movie" = section === "movie" ? "movie" : "tv"
@@ -43,5 +51,5 @@ export function extractHBOMax(
     episode: isVideo ? episode : null,
     episode_id: null,
     currentTime
-  };
+  }
 }
