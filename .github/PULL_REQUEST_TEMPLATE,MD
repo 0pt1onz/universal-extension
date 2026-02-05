@@ -1,0 +1,23 @@
+----------------------------------------
+## Description
+<!-- A clear and detailed description of the changes, referencing issues if applicable -->
+
+----------------------------------------
+## Acknowledgements
+
+- [ ] This PR has been linted with ESLint and has a clear purpose.
+- [ ] The PR title follows the repo's [commit conventions](https://github.com/TheIntroDB/universal-extension/blob/main/.github/COMMIT_CONVENTION.md)
+- [ ] I tested this change locally and it's ready for production.
+- [ ] Code follows existing patterns and style.
+- [ ] No unnecessary permissions, logs or debug code were added.
+
+----------------------------------------
+Additional Context
+
+<details>
+  <summary>Links, edge cases, follow-ups, or future work</summary>
+
+  - Related issue: #
+  - Known limitation:
+  - TODO:
+</details>.
