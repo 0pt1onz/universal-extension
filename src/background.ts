@@ -1,9 +1,9 @@
-export { }
+export {}
 
 const TMDB_TOKEN = process.env.PLASMO_PUBLIC_TMDB_TOKEN
 const tabIntroData = new Map<
   number,
-  { status: string;[key: string]: unknown }
+  { status: string; [key: string]: unknown }
 >()
 const INTRODB_API =
   process.env.PLASMO_PUBLIC_INTRODB_API || "https://api.theintrodb.org/v1"
@@ -17,10 +17,9 @@ async function getTvShowDetails(tmdbId: number): Promise<{
   id: number
   number_of_seasons: number
 } | null> {
-  const res = await fetch(
-    `https://api.themoviedb.org/3/tv/${tmdbId}`,
-    { headers: tmdbHeaders }
-  )
+  const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}`, {
+    headers: tmdbHeaders
+  })
   if (!res.ok) return null
   const data = (await res.json()) as { id: number; number_of_seasons?: number }
   return {
@@ -84,7 +83,9 @@ async function handleDiscovery(data: {
         const searchUrl = `https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(data.title)}`
         const res = await fetch(searchUrl, { headers: tmdbHeaders })
         if (res.ok) {
-          const searchData = (await res.json()) as { results?: Array<{ id: number }> }
+          const searchData = (await res.json()) as {
+            results?: Array<{ id: number }>
+          }
           if (searchData.results?.length) {
             tmdbId = searchData.results[0].id
             show = await getTvShowDetails(tmdbId)

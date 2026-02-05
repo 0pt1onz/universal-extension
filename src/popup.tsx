@@ -169,7 +169,6 @@ function IndexPopup() {
           <h2
             style={{
               fontSize: 13,
-              textTransform: "uppercase",
               letterSpacing: "1.5px",
               margin: 0,
               fontWeight: 700

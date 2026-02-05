@@ -1,4 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo"
+
 import { extractMediaContext } from "~/websites"
 
 export const config: PlasmoCSConfig = {
@@ -8,7 +9,10 @@ export const config: PlasmoCSConfig = {
 }
 
 const browserAPI = typeof browser !== "undefined" ? browser : chrome
-let activeTimestamps: Record<string, { start_ms: number; end_ms: number | null }> | null = null
+let activeTimestamps: Record<
+  string,
+  { start_ms: number; end_ms: number | null }
+> | null = null
 let skipBtn: HTMLButtonElement | null = null
 let playbackIntervalId: ReturnType<typeof setInterval> | null = null
 
@@ -26,8 +30,10 @@ function sendMessagePromise<T = unknown>(message: object): Promise<T> {
 function getMediaContext() {
   const video = document.querySelector("video")
   const pageTitle =
-    document.querySelector('h1')?.innerText ||
-    document.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+    document.querySelector("h1")?.innerText ||
+    document
+      .querySelector('meta[property="og:title"]')
+      ?.getAttribute("content") ||
     document.title
 
   return extractMediaContext(
@@ -45,18 +51,29 @@ browserAPI.runtime.onMessage.addListener((req, _sender, sendResponse) => {
   return true
 })
 
-function applyIntroData(res: any): boolean {
+function applyIntroData(res: {
+  status: string
+  [key: string]: unknown
+}): boolean {
   if (!res || res.status !== "success") return false
 
-  const timestamps: Record<string, { start_ms: number; end_ms: number | null }> = {}
+  const timestamps: Record<
+    string,
+    { start_ms: number; end_ms: number | null }
+  > = {}
 
   for (const key of ["intro", "recap", "credits"] as const) {
     const seg = res[key]
-    if (seg && typeof seg.start_ms === "number") {
+    if (
+      seg &&
+      typeof seg === "object" &&
+      "start_ms" in seg &&
+      typeof seg.start_ms === "number"
+    ) {
       timestamps[key] = {
         start_ms: seg.start_ms,
-        end_ms: seg.end_ms ?? null
-      }
+        end_ms: (seg as unknown as { end_ms: number | null }).end_ms ?? null
+      } as { start_ms: number; end_ms: number | null }
     }
   }
 
@@ -74,7 +91,10 @@ async function init() {
 
   if (hasContext) {
     try {
-      const res = await sendMessagePromise<any>({
+      const res = await sendMessagePromise<{
+        status: string
+        [key: string]: unknown
+      }>({
         action: "resolveAndFetch",
         data: { ...ctx, isTV: ctx.type === "tv" }
       })
@@ -88,7 +108,12 @@ async function init() {
   if (video) {
     const tryStored = async () => {
       try {
-        const res = await sendMessagePromise<any>({ action: "getStoredIntroData" })
+        const res = await sendMessagePromise<{
+          status: string
+          [key: string]: unknown
+        }>({
+          action: "getStoredIntroData"
+        })
         return applyIntroData(res)
       } catch {
         return false
@@ -98,7 +123,7 @@ async function init() {
     if (await tryStored()) return
 
     const interval = setInterval(async () => {
-      if (activeTimestamps || await tryStored()) {
+      if (activeTimestamps || (await tryStored())) {
         clearInterval(interval)
       }
     }, 3000)
@@ -115,14 +140,18 @@ function monitorPlayback() {
     if (!video || !activeTimestamps) return
 
     const now = video.currentTime * 1000
-    const durationMs = Number.isFinite(video.duration) ? video.duration * 1000 : 0
+    const durationMs = Number.isFinite(video.duration)
+      ? video.duration * 1000
+      : 0
 
-    const activeSegmentKey = (["intro", "recap", "credits"] as const).find((key) => {
-      const s = activeTimestamps![key]
-      if (!s) return false
-      const endMs = s.end_ms ?? durationMs
-      return now >= s.start_ms && now < endMs
-    })
+    const activeSegmentKey = (["intro", "recap", "credits"] as const).find(
+      (key) => {
+        const s = activeTimestamps![key]
+        if (!s) return false
+        const endMs = s.end_ms ?? durationMs
+        return now >= s.start_ms && now < endMs
+      }
+    )
 
     if (activeSegmentKey) {
       const segment = activeTimestamps[activeSegmentKey]
@@ -159,8 +188,12 @@ function createBtn(type: string, endMs: number) {
     transition: "transform 0.2s"
   })
 
-  skipBtn.onmouseenter = () => { skipBtn!.style.transform = "scale(1.05)" }
-  skipBtn.onmouseleave = () => { skipBtn!.style.transform = "scale(1)" }
+  skipBtn.onmouseenter = () => {
+    skipBtn!.style.transform = "scale(1.05)"
+  }
+  skipBtn.onmouseleave = () => {
+    skipBtn!.style.transform = "scale(1)"
+  }
 
   skipBtn.onclick = (e) => {
     e.preventDefault()

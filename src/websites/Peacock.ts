@@ -9,11 +9,16 @@ function cleanTitle(title: string): string {
     .trim()
 }
 
-function parseSeasonEpisodeFromBody(bodyText: string): { season: number | null; episode: number | null } {
-  const sE = bodyText.match(/S(\d+)\s*[E:]\s*E?(\d+)/i) || bodyText.match(/(\d+)x(\d+)/i)
+function parseSeasonEpisodeFromBody(bodyText: string): {
+  season: number | null
+  episode: number | null
+} {
+  const sE =
+    bodyText.match(/S(\d+)\s*[E:]\s*E?(\d+)/i) || bodyText.match(/(\d+)x(\d+)/i)
   if (sE) return { season: parseInt(sE[1], 10), episode: parseInt(sE[2], 10) }
   const long = bodyText.match(/Season\s+(\d+)[,\s]+Episode\s+(\d+)/i)
-  if (long) return { season: parseInt(long[1], 10), episode: parseInt(long[2], 10) }
+  if (long)
+    return { season: parseInt(long[1], 10), episode: parseInt(long[2], 10) }
   return { season: null, episode: null }
 }
 
@@ -29,7 +34,8 @@ export function extractPeacock(
 ): MediaContext {
   const title = cleanTitle(documentTitle)
   const pathname = new URL(url, "https://peacocktv.com").pathname
-  const isPlayback = pathname.includes("/watch/playback") || pathname.includes("/watch/asset")
+  const isPlayback =
+    pathname.includes("/watch/playback") || pathname.includes("/watch/asset")
   const { season, episode } = parseSeasonEpisodeFromBody(bodyText)
 
   return {
@@ -40,6 +46,5 @@ export function extractPeacock(
     episode: isPlayback ? episode : null,
     episode_id: null,
     currentTime
-  };
+  }
 }
-

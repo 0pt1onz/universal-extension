@@ -1,13 +1,13 @@
-import type { MediaContext } from "./types"
+import { extractAppleTV, matchAppleTV } from "./AppleTV"
 import { extractGeneric } from "./generic"
-import { matchAppleTV, extractAppleTV } from "./AppleTV"
-import { matchHBOMax, extractHBOMax } from "./HBOMax"
-import { matchHDrezka, extractHDrezka } from "./HDrezka"
-import { matchNetflix, extractNetflix } from "./Netflix"
-import { matchParamountPlus, extractParamountPlus } from "./ParamountPlus"
-import { matchPeacock, extractPeacock } from "./Peacock"
-import { matchPlex, extractPlex } from "./Plex"
-import { matchPrimeVideo, extractPrimeVideo } from "./PrimeVideo"
+import { extractHBOMax, matchHBOMax } from "./HBOMax"
+import { extractHDrezka, matchHDrezka } from "./HDrezka"
+import { extractNetflix, matchNetflix } from "./Netflix"
+import { extractParamountPlus, matchParamountPlus } from "./ParamountPlus"
+import { extractPeacock, matchPeacock } from "./Peacock"
+import { extractPlex, matchPlex } from "./Plex"
+import { extractPrimeVideo, matchPrimeVideo } from "./PrimeVideo"
+import type { MediaContext } from "./types"
 
 export type { MediaContext }
 
