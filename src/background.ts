@@ -113,7 +113,13 @@ async function handleDiscovery(data: {
       introUrl += `&season=${seasonNumber}&episode=${episodeNumber}`
     }
 
-    const res = await fetch(introUrl)
+    const { introdb_api_key } = (await chrome.storage.local.get("introdb_api_key")) as {
+      introdb_api_key?: string
+    }
+    const headers: Record<string, string> = { Accept: "application/json" }
+    if (introdb_api_key) headers.Authorization = `Bearer ${introdb_api_key}`
+
+    const res = await fetch(introUrl, { headers })
     if (!res.ok) return { status: "no_data", tmdb_id: tmdbId }
 
     const introData = (await res.json()) as Record<string, unknown>
@@ -127,7 +133,7 @@ async function handleDiscovery(data: {
     const endMsFrom = (s: Record<string, number | null>): number | null =>
       s.end_ms != null ? s.end_ms : s.end != null ? s.end * 1000 : null
 
-    for (const key of ["intro", "recap", "credits"] as const) {
+    for (const key of ["intro", "recap", "credits", "preview"] as const) {
       const seg = introData[key]
       if (!seg || typeof seg !== "object") continue
       const s = seg as Record<string, number | null>

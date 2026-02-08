@@ -62,7 +62,7 @@ function applyIntroData(res: {
     { start_ms: number; end_ms: number | null }
   > = {}
 
-  for (const key of ["intro", "recap", "credits"] as const) {
+  for (const key of ["intro", "recap", "credits", "preview"] as const) {
     const seg = res[key]
     if (
       seg &&
@@ -144,7 +144,7 @@ function monitorPlayback() {
       ? video.duration * 1000
       : 0
 
-    const activeSegmentKey = (["intro", "recap", "credits"] as const).find(
+    const activeSegmentKey = (["intro", "recap", "credits", "preview"] as const).find(
       (key) => {
         const s = activeTimestamps![key]
         if (!s) return false

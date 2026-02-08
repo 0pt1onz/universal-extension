@@ -24,7 +24,7 @@ function IndexPopup() {
   const [season, setSeason] = useState("")
   const [episode, setEpisode] = useState("")
   const [startSec, setStartSec] = useState("")
-  const [segment, setSegment] = useState("intro")
+  const [segment, setSegment] = useState<"intro" | "recap" | "credits" | "preview">("intro")
   const [status, setStatus] = useState("")
   const [statusColor, setStatusColor] = useState("")
 
@@ -94,16 +94,21 @@ function IndexPopup() {
   async function handleSubmit() {
     const { introdb_api_key } = await api.storage.local.get(["introdb_api_key"])
     const endSecEl = document.getElementById("end_sec") as HTMLInputElement
-    const payload = {
+    const endSecRaw = endSecEl?.value?.trim() ?? ""
+    const endSec =
+      endSecRaw === ""
+        ? (segment === "credits" || segment === "preview" ? null : 0)
+        : parseTimeToSeconds(endSecRaw)
+    const payload: Record<string, unknown> = {
       tmdb_id: Number(tmdbId),
       type: mediaType,
       segment,
       start_sec: parseTimeToSeconds(startSec),
-      end_sec: parseTimeToSeconds(endSecEl?.value || "0")
+      end_sec: endSec
     }
     if (mediaType === "tv") {
-      ;(payload as Record<string, unknown>).season = Number(season)
-      ;(payload as Record<string, unknown>).episode = Number(episode)
+      payload.season = Number(season)
+      payload.episode = Number(episode)
     }
     setStatus("Submitting...")
     try {
@@ -274,15 +279,16 @@ function IndexPopup() {
                 }}>
                 Segment
               </label>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                {(["intro", "recap", "credits"] as const).map((s) => (
+              <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                {(["intro", "recap", "credits", "preview"] as const).map((s) => (
                   <button
                     key={s}
                     type="button"
                     data-segment={s}
                     onClick={() => setSegment(s)}
                     style={{
-                      flex: 1,
+                      flex: "1 1 0",
+                      minWidth: 70,
                       padding: 10,
                       background:
                         segment === s ? "rgba(0,255,136,0.12)" : "#151515",
@@ -297,7 +303,9 @@ function IndexPopup() {
                       ? "Intro"
                       : s === "recap"
                         ? "Recap"
-                        : "Credits"}
+                        : s === "credits"
+                          ? "Credits"
+                          : "Preview"}
                   </button>
                 ))}
               </div>
