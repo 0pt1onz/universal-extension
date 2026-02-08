@@ -1,8 +1,8 @@
 {
   "name": "universal-extension",
-  "displayName": "TIDB",
+  "displayName": "The Intro Database",
   "version": "1.0.0",
-  "description": "A browser extension to skip intros, recaps, and credits with TheIntroDB.",
+  "description": "A browser extension that adds skip buttons for intros, recaps, credits, and previews on almost any site!",
   "author": "TheIntroDB",
   "scripts": {
     "dev": "plasmo dev",
@@ -40,7 +40,12 @@
     "browser_specific_settings": {
       "gecko": {
         "id": "{8c4e2f1a-5b9d-4e3a-a7f2-1d6c8b0e9a3f}",
-        "strict_min_version": "109.0"
+        "strict_min_version": "109.0",
+        "data_collection_permissions": {
+          "required": [
+            "browsingActivity"
+          ]
+        }
       }
     },
     "host_permissions": [
