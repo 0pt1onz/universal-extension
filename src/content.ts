@@ -181,7 +181,6 @@ function createBtn(type: string, endMs: number) {
     fontWeight: "900",
     borderRadius: "8px",
     cursor: "pointer",
-    border: "2px solid black",
     boxShadow: "0 0 20px rgba(0,255,136,0.6)",
     fontFamily: "sans-serif",
     fontSize: "12px",

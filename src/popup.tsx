@@ -139,21 +139,34 @@ function IndexPopup() {
   }
 
   return (
-    <div
-      style={{
-        width: 320,
-        fontFamily: "'Ubuntu', sans-serif",
-        margin: 0,
-        background: "#0a0a0a",
-        color: "#fff",
-        overflow: "hidden"
-      }}>
+    <>
+      <style>{`
+        html, body {
+          margin: 0;
+          padding: 0;
+          background: #0a0a0a;
+          color: #fff;
+          box-sizing: border-box;
+        }
+        *, *::before, *::after { box-sizing: inherit; }
+      `}</style>
       <div
         style={{
-          padding: "20px 20px 10px 20px",
-          backdropFilter: "blur(12px)",
-          borderTop: "2px solid #00ff88"
+          boxSizing: "border-box",
+          width: 320,
+          maxWidth: "100%",
+          fontFamily: "'Ubuntu', sans-serif",
+          margin: 0,
+          padding: 0,
+          overflow: "hidden"
         }}>
+        <div
+          style={{
+            boxSizing: "border-box",
+            width: "100%",
+            padding: "20px",
+            borderTop: "2px solid #00ff88"
+          }}>
         <div
           style={{
             display: "flex",
@@ -184,6 +197,9 @@ function IndexPopup() {
 
         <div
           style={{
+            boxSizing: "border-box",
+            width: "100%",
+            overflow: "hidden",
             background: "rgba(25, 25, 25, 0.8)",
             padding: 18,
             borderRadius: 12,
@@ -210,6 +226,7 @@ function IndexPopup() {
                 placeholder="Enter TIDB Api Key"
                 style={{
                   width: "100%",
+                  minWidth: 0,
                   padding: 11,
                   background: "#151515",
                   border: "1px solid rgba(255,255,255,0.08)",
@@ -247,13 +264,17 @@ function IndexPopup() {
             <>
               <div
                 style={{
+                  boxSizing: "border-box",
                   fontSize: 12,
                   fontWeight: 500,
                   marginBottom: 4,
                   borderLeft: "3px solid #00ff88",
                   padding: "4px 10px",
                   background:
-                    "linear-gradient(90deg, rgba(0,255,136,0.1), transparent)"
+                    "linear-gradient(90deg, rgba(0,255,136,0.1), transparent)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap"
                 }}>
                 {mediaTitle}
               </div>
@@ -279,7 +300,13 @@ function IndexPopup() {
                 }}>
                 Segment
               </label>
-              <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 8,
+                  marginBottom: 12
+                }}>
                 {(["intro", "recap", "credits", "preview"] as const).map((s) => (
                   <button
                     key={s}
@@ -287,8 +314,6 @@ function IndexPopup() {
                     data-segment={s}
                     onClick={() => setSegment(s)}
                     style={{
-                      flex: "1 1 0",
-                      minWidth: 70,
                       padding: 10,
                       background:
                         segment === s ? "rgba(0,255,136,0.12)" : "#151515",
@@ -322,7 +347,13 @@ function IndexPopup() {
                 }}>
                 Time (MM:SS)
               </label>
-              <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginBottom: 12,
+                  minWidth: 0
+                }}>
                 <input
                   className="input"
                   id="start_sec"
@@ -330,7 +361,8 @@ function IndexPopup() {
                   value={startSec}
                   onChange={(e) => setStartSec(e.target.value)}
                   style={{
-                    width: "100%",
+                    flex: "1 1 0",
+                    minWidth: 0,
                     padding: 11,
                     background: "#151515",
                     border: "1px solid rgba(255,255,255,0.08)",
@@ -346,7 +378,8 @@ function IndexPopup() {
                   id="end_sec"
                   placeholder="01:30"
                   style={{
-                    width: "100%",
+                    flex: "1 1 0",
+                    minWidth: 0,
                     padding: 11,
                     background: "#151515",
                     border: "1px solid rgba(255,255,255,0.08)",
@@ -409,8 +442,9 @@ function IndexPopup() {
             </>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
