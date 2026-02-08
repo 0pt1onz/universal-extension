@@ -113,7 +113,9 @@ async function handleDiscovery(data: {
       introUrl += `&season=${seasonNumber}&episode=${episodeNumber}`
     }
 
-    const { introdb_api_key } = (await chrome.storage.local.get("introdb_api_key")) as {
+    const { introdb_api_key } = (await chrome.storage.local.get(
+      "introdb_api_key"
+    )) as {
       introdb_api_key?: string
     }
     const headers: Record<string, string> = { Accept: "application/json" }

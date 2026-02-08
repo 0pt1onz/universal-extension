@@ -144,14 +144,14 @@ function monitorPlayback() {
       ? video.duration * 1000
       : 0
 
-    const activeSegmentKey = (["intro", "recap", "credits", "preview"] as const).find(
-      (key) => {
-        const s = activeTimestamps![key]
-        if (!s) return false
-        const endMs = s.end_ms ?? durationMs
-        return now >= s.start_ms && now < endMs
-      }
-    )
+    const activeSegmentKey = (
+      ["intro", "recap", "credits", "preview"] as const
+    ).find((key) => {
+      const s = activeTimestamps![key]
+      if (!s) return false
+      const endMs = s.end_ms ?? durationMs
+      return now >= s.start_ms && now < endMs
+    })
 
     if (activeSegmentKey) {
       const segment = activeTimestamps[activeSegmentKey]
