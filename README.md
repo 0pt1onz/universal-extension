@@ -23,7 +23,15 @@ These sites have dedicated extractors for the best experience:
 
 ---
 
-## Install and run
+## Installation
+
+- [Chrome](https://chromewebstore.google.com/detail/theintrodb/goehnlbabpghpkbnlagolifeahameemn)
+- [Firefox](https://addons.mozilla.org/en-US/firefox/addon/theintrodb/)
+- [Manual Installation](https://github.com/TheIntroDB/universal-extension/releases)
+
+---
+
+## Development
 
 1. **Install dependencies**
 
