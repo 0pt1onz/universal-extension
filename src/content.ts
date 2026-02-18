@@ -4,7 +4,7 @@ import { extractMediaContext } from "~/websites"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
-  all_frames: true,
+  all_frames: false,
   run_at: "document_idle"
 }
 
@@ -27,18 +27,69 @@ function sendMessagePromise<T = unknown>(message: object): Promise<T> {
   })
 }
 
+function cleanTitle(raw: string): string {
+  if (!raw) return ""
+
+  return raw
+    .replace(/^(watch|stream|online|free)\s+/i, "")
+    .replace(/\s*[-|–]\s*.*$/, "")
+    .replace(/\bseason\s*\d+\b/gi, "")
+    .replace(/\bepisode\s*\d+\b/gi, "")
+    .replace(/\bs\d+e\d+\b/gi, "")
+    .trim()
+}
+
+function extractFromJsonLd(): string | null {
+  const scripts = document.querySelectorAll(
+    'script[type="application/ld+json"]'
+  )
+
+  for (const script of scripts) {
+    try {
+      const data = JSON.parse(script.textContent || "")
+      const items = Array.isArray(data) ? data : [data]
+
+      for (const item of items) {
+        if (item["@type"] === "TVEpisode") {
+          return item.partOfSeries?.name ?? null
+        }
+
+        if (item["@type"] === "TVSeries") {
+          return item.name ?? null
+        }
+
+        if (item["@type"] === "Movie") {
+          return item.name ?? null
+        }
+      }
+    } catch {
+      //nothing
+    }
+  }
+
+  return null
+}
+
 function getMediaContext() {
+  if (window !== window.top) {
+    throw new Error("Ignore iframe context")
+  }
+
   const video = document.querySelector("video")
-  const pageTitle =
-    document.querySelector("h1")?.innerText ||
-    document
-      .querySelector('meta[property="og:title"]')
-      ?.getAttribute("content") ||
-    document.title
+
+  const structuredTitle = extractFromJsonLd()
+
+  const ogTitle = document
+    .querySelector('meta[property="og:title"]')
+    ?.getAttribute("content")
+
+  const h1 = document.querySelector("h1")?.innerText
+
+  const rawTitle = structuredTitle || h1 || ogTitle || document.title
 
   return extractMediaContext(
     window.location.href,
-    pageTitle,
+    cleanTitle(rawTitle || ""),
     document.body.innerText,
     video ? video.currentTime : 0
   )
@@ -86,7 +137,15 @@ function applyIntroData(res: {
 }
 
 async function init() {
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+
   const ctx = getMediaContext()
+
+  if (!ctx.title || ctx.title.length <= 2) {
+    console.log("Title not ready yet:", ctx.title)
+    return
+  }
+
   const hasContext = !!(ctx.tmdb_id || ctx.title)
 
   if (hasContext) {

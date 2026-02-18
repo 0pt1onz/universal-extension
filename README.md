@@ -67,6 +67,7 @@ Copy `.env.example` to `.env` to set `PLASMO_PUBLIC_TMDB_TOKEN` (for title → T
 Site logic lives in `src/websites/`. Each supported site can have its own file that exports:
 
 1. **`match`** – when to use this extractor:
+
    - A **RegExp** tested against the page URL, or
    - A **function** `(url: string) => boolean`.
 

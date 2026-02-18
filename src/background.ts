@@ -6,7 +6,7 @@ const tabIntroData = new Map<
   { status: string; [key: string]: unknown }
 >()
 const INTRODB_API =
-  process.env.PLASMO_PUBLIC_INTRODB_API || "https://api.theintrodb.org/v1"
+  process.env.PLASMO_PUBLIC_INTRODB_API || "https://api.theintrodb.org/v2"
 
 const tmdbHeaders = {
   Authorization: `Bearer ${TMDB_TOKEN}`,
@@ -60,7 +60,13 @@ async function handleDiscovery(data: {
   try {
     let tmdbId = data.tmdb_id
 
-    if (!tmdbId && data.title && data.title.toLowerCase() !== "xprime") {
+    if (
+      !tmdbId &&
+      data.title &&
+      data.title.length > 2 &&
+      !/^[a-z]$/i.test(data.title) &&
+      data.title.toLowerCase() !== "xprime"
+    ) {
       const type = data.isTV ? "tv" : "movie"
       const searchUrl = `https://api.themoviedb.org/3/search/${type}?query=${encodeURIComponent(data.title)}`
 
@@ -130,30 +136,22 @@ async function handleDiscovery(data: {
       { start_ms: number; end_ms: number | null }
     > = {}
 
-    const startMsFrom = (s: Record<string, number | null>): number =>
-      s.start_ms != null ? s.start_ms : s.start != null ? s.start * 1000 : 0
-    const endMsFrom = (s: Record<string, number | null>): number | null =>
-      s.end_ms != null ? s.end_ms : s.end != null ? s.end * 1000 : null
+    const timestamps: Record<
+      string,
+      Array<{ start_ms: number; end_ms: number | null }>
+    > = {}
 
     for (const key of ["intro", "recap", "credits", "preview"] as const) {
-      const seg = introData[key]
-      if (!seg || typeof seg !== "object") continue
-      const s = seg as Record<string, number | null>
+      const segments = introData[key]
+      if (!Array.isArray(segments) || segments.length === 0) continue
 
-      if (key === "intro" || key === "recap") {
-        const endMs = endMsFrom(s)
-        if (endMs == null || endMs <= 0) continue
-        const startMs = startMsFrom(s)
-        if (endMs <= startMs) continue
-        normalized[key] = { start_ms: startMs, end_ms: endMs }
-      } else {
-        if (s.start_ms == null && s.start == null) continue
-        const startMs = startMsFrom(s)
-        const endMs = endMsFrom(s)
-        normalized[key] = { start_ms: startMs, end_ms: endMs }
-      }
+      timestamps[key] = segments
+        .map((s) => ({
+          start_ms: s.start_ms ?? s.start! * 1000,
+          end_ms: s.end_ms ?? s.end! * 1000
+        }))
+        .filter((s) => s.start_ms < (s.end_ms ?? Infinity))
     }
-
     return { status: "success", ...normalized, tmdb_id: tmdbId }
   } catch (e) {
     console.error("Discovery Error:", e)
