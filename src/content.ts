@@ -1,233 +1,68 @@
 import type { PlasmoCSConfig } from "plasmo"
-
 import { extractMediaContext } from "~/websites"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
-  all_frames: false,
+  all_frames: true,
   run_at: "document_idle"
 }
 
-const browserAPI = typeof browser !== "undefined" ? browser : chrome
-let activeTimestamps: Record<
-  string,
-  { start_ms: number; end_ms: number | null }
-> | null = null
+
+interface Segment {
+  start_ms: number
+  end_ms: number
+}
+
+interface IntroResponse {
+  status: string
+  intro?: Segment[]
+  recap?: Segment[]
+  credits?: Segment[]
+  preview?: Segment[]
+}
+
+interface MediaContext {
+  title: string
+  type: "tv" | "movie"
+  season?: number
+  episode?: number
+  episode_id?: number
+  tmdb_id?: number
+  year?: string
+}
+
+let activeTimestamps: Record<string, Segment[]> | null = null
 let skipBtn: HTMLButtonElement | null = null
 let playbackIntervalId: ReturnType<typeof setInterval> | null = null
 
-function sendMessagePromise<T = unknown>(message: object): Promise<T> {
-  return new Promise((resolve, reject) => {
-    browserAPI.runtime.sendMessage(message, (response: T) => {
-      if (chrome.runtime.lastError) {
-        return reject(chrome.runtime.lastError)
-      }
-      resolve(response)
-    })
-  })
-}
+async function recordSkip(type: string, durationMs: number) {
+  const key = "skipButtonStats"
+  const storage = await chrome.storage.local.get([key])
 
-function cleanTitle(raw: string): string {
-  if (!raw) return ""
-
-  return raw
-    .replace(/^(watch|stream|online|free)\s+/i, "")
-    .replace(/\s*[-|–]\s*.*$/, "")
-    .replace(/\bseason\s*\d+\b/gi, "")
-    .replace(/\bepisode\s*\d+\b/gi, "")
-    .replace(/\bs\d+e\d+\b/gi, "")
-    .trim()
-}
-
-function extractFromJsonLd(): string | null {
-  const scripts = document.querySelectorAll(
-    'script[type="application/ld+json"]'
-  )
-
-  for (const script of scripts) {
-    try {
-      const data = JSON.parse(script.textContent || "")
-      const items = Array.isArray(data) ? data : [data]
-
-      for (const item of items) {
-        if (item["@type"] === "TVEpisode") {
-          return item.partOfSeries?.name ?? null
-        }
-
-        if (item["@type"] === "TVSeries") {
-          return item.name ?? null
-        }
-
-        if (item["@type"] === "Movie") {
-          return item.name ?? null
-        }
-      }
-    } catch {
-      //nothing
-    }
+  const stats = storage[key] || {
+    segments_skipped: { intro: 0, recap: 0, credits: 0 },
+    time_saved_by_type_ms: { intro: 0, recap: 0, credits: 0 }
   }
 
-  return null
-}
+  const typeKey = type.toLowerCase() as "intro" | "recap" | "credits"
 
-function getMediaContext() {
-  if (window !== window.top) {
-    throw new Error("Ignore iframe context")
-  }
-
-  const video = document.querySelector("video")
-
-  const structuredTitle = extractFromJsonLd()
-
-  const ogTitle = document
-    .querySelector('meta[property="og:title"]')
-    ?.getAttribute("content")
-
-  const h1 = document.querySelector("h1")?.innerText
-
-  const rawTitle = structuredTitle || h1 || ogTitle || document.title
-
-  return extractMediaContext(
-    window.location.href,
-    cleanTitle(rawTitle || ""),
-    document.body.innerText,
-    video ? video.currentTime : 0
-  )
-}
-
-browserAPI.runtime.onMessage.addListener((req, _sender, sendResponse) => {
-  if (req.action === "getPlayerInfo") {
-    sendResponse(getMediaContext())
-  }
-  return true
-})
-
-function applyIntroData(res: {
-  status: string
-  [key: string]: unknown
-}): boolean {
-  if (!res || res.status !== "success") return false
-
-  const timestamps: Record<
-    string,
-    { start_ms: number; end_ms: number | null }
-  > = {}
-
-  for (const key of ["intro", "recap", "credits", "preview"] as const) {
-    const seg = res[key]
-    if (
-      seg &&
-      typeof seg === "object" &&
-      "start_ms" in seg &&
-      typeof seg.start_ms === "number"
-    ) {
-      timestamps[key] = {
-        start_ms: seg.start_ms,
-        end_ms: (seg as unknown as { end_ms: number | null }).end_ms ?? null
-      } as { start_ms: number; end_ms: number | null }
-    }
-  }
-
-  if (Object.keys(timestamps).length > 0) {
-    activeTimestamps = timestamps
-    monitorPlayback()
-    return true
-  }
-  return false
-}
-
-async function init() {
-  await new Promise((resolve) => setTimeout(resolve, 1500))
-
-  const ctx = getMediaContext()
-
-  if (!ctx.title || ctx.title.length <= 2) {
-    console.log("Title not ready yet:", ctx.title)
-    return
-  }
-
-  const hasContext = !!(ctx.tmdb_id || ctx.title)
-
-  if (hasContext) {
-    try {
-      const res = await sendMessagePromise<{
-        status: string
-        [key: string]: unknown
-      }>({
-        action: "resolveAndFetch",
-        data: { ...ctx, isTV: ctx.type === "tv" }
-      })
-      if (applyIntroData(res)) return
-    } catch (e) {
-      console.error("Initial fetch failed:", e)
-    }
-  }
-
-  const video = document.querySelector("video")
-  if (video) {
-    const tryStored = async () => {
-      try {
-        const res = await sendMessagePromise<{
-          status: string
-          [key: string]: unknown
-        }>({
-          action: "getStoredIntroData"
-        })
-        return applyIntroData(res)
-      } catch {
-        return false
-      }
-    }
-
-    if (await tryStored()) return
-
-    const interval = setInterval(async () => {
-      if (activeTimestamps || (await tryStored())) {
-        clearInterval(interval)
-      }
-    }, 3000)
-
-    setTimeout(() => clearInterval(interval), 60000)
+  if (stats.segments_skipped[typeKey] !== undefined) {
+    stats.segments_skipped[typeKey] += 1
+    stats.time_saved_by_type_ms[typeKey] += Math.max(0, durationMs)
+    await chrome.storage.local.set({ [key]: stats })
   }
 }
 
-function monitorPlayback() {
-  if (playbackIntervalId) clearInterval(playbackIntervalId)
-
-  playbackIntervalId = setInterval(() => {
-    const video = document.querySelector("video")
-    if (!video || !activeTimestamps) return
-
-    const now = video.currentTime * 1000
-    const durationMs = Number.isFinite(video.duration)
-      ? video.duration * 1000
-      : 0
-
-    const activeSegmentKey = (
-      ["intro", "recap", "credits", "preview"] as const
-    ).find((key) => {
-      const s = activeTimestamps![key]
-      if (!s) return false
-      const endMs = s.end_ms ?? durationMs
-      return now >= s.start_ms && now < endMs
-    })
-
-    if (activeSegmentKey) {
-      const segment = activeTimestamps[activeSegmentKey]
-      const endMs = segment.end_ms ?? durationMs
-      if (!skipBtn) createBtn(activeSegmentKey, endMs)
-    } else if (skipBtn) {
-      skipBtn.remove()
-      skipBtn = null
-    }
-  }, 500)
+function getActiveVideo(): HTMLVideoElement | null {
+  const videos = Array.from(document.querySelectorAll("video"))
+  return videos.find((v) => !v.paused) || videos[0] || null
 }
 
 function createBtn(type: string, endMs: number) {
   if (skipBtn) return
 
   skipBtn = document.createElement("button")
-  skipBtn.innerText = `SKIP ${type.toUpperCase()}`
+  skipBtn.textContent = `SKIP ${type.toUpperCase()}`
 
   Object.assign(skipBtn.style, {
     position: "fixed",
@@ -235,36 +70,120 @@ function createBtn(type: string, endMs: number) {
     bottom: "130px",
     padding: "14px 28px",
     backgroundColor: "#ffffff",
-    color: "#000000",
+    color: "#000",
     zIndex: "2147483647",
     fontWeight: "900",
     borderRadius: "8px",
     cursor: "pointer",
+    border: "none",
+    outline: "none",
     boxShadow: "0 0 20px rgba(0,255,136,0.6)",
     fontFamily: "sans-serif",
     fontSize: "12px",
-    transition: "transform 0.2s"
+    transition: "transform 0.1s ease"
   })
 
-  skipBtn.onmouseenter = () => {
-    skipBtn!.style.transform = "scale(1.05)"
-  }
-  skipBtn.onmouseleave = () => {
-    skipBtn!.style.transform = "scale(1)"
-  }
-
-  skipBtn.onclick = (e) => {
+  skipBtn.onclick = async (e) => {
     e.preventDefault()
-    e.stopPropagation()
-    const video = document.querySelector("video")
+    e.stopImmediatePropagation()
+
+    const video = getActiveVideo()
     if (video) {
-      video.currentTime = endMs / 1000
-      skipBtn?.remove()
-      skipBtn = null
+      const currentMs = video.currentTime * 1000
+      const savedMs = endMs - currentMs
+
+      await recordSkip(type, savedMs)
+
+      Object.getOwnPropertyDescriptor(
+        HTMLMediaElement.prototype,
+        "currentTime"
+      )?.set?.call(video, endMs / 1000)
     }
+
+    skipBtn?.remove()
+    skipBtn = null
   }
 
   document.body.appendChild(skipBtn)
+}
+
+function monitorPlayback() {
+  if (playbackIntervalId) clearInterval(playbackIntervalId)
+
+  playbackIntervalId = setInterval(() => {
+    const video = getActiveVideo()
+    if (!video || !activeTimestamps) return
+
+    const now = video.currentTime * 1000
+    let found: { type: string; end: number } | null = null
+
+    for (const [type, segments] of Object.entries(activeTimestamps)) {
+      const active = segments.find(
+        (s) => now >= s.start_ms && now < s.end_ms - 500
+      )
+      if (active) {
+        found = { type, end: active.end_ms }
+        break
+      }
+    }
+
+    if (found) {
+      if (!skipBtn) createBtn(found.type, found.end)
+    } else if (skipBtn) {
+      skipBtn.remove()
+      skipBtn = null
+    }
+  }, 400)
+}
+
+async function init() {
+  const video = await new Promise<HTMLVideoElement | null>((res) => {
+    let attempts = 0
+    const check = setInterval(() => {
+      const v = getActiveVideo()
+      attempts++
+      if (v) {
+        clearInterval(check)
+        res(v)
+      } else if (attempts > 20) {
+        clearInterval(check)
+        res(null)
+      }
+    }, 500)
+  })
+
+  if (!video) return
+
+  const ctx = extractMediaContext(
+    window.location.href,
+    document.title,
+    document.body.innerText,
+    video.currentTime
+  ) as MediaContext
+
+  if (!ctx?.title && !ctx?.tmdb_id) return
+
+  const res = (await chrome.runtime.sendMessage({
+    action: "resolveAndFetch",
+    data: {
+      ...ctx,
+      isTV: ctx.type === "tv"
+    }
+  })) as IntroResponse
+
+  if (res?.status === "success") {
+    const data: Record<string, Segment[]> = {}
+    const keys = ["intro", "recap", "credits", "preview"] as const
+
+    keys.forEach((k) => {
+      if (Array.isArray(res[k])) {
+        data[k] = res[k]!
+      }
+    })
+
+    activeTimestamps = data
+    monitorPlayback()
+  }
 }
 
 init()

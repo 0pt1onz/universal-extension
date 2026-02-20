@@ -1,6 +1,8 @@
 {
   "extends": "plasmo/templates/tsconfig.base",
   "exclude": ["node_modules"],
+  "esModuleInterop": true,
+  "jsx": "react-jsx",
   "include": [".plasmo/index.d.ts", "./src/**/*.ts", "./src/**/*.tsx"],
   "compilerOptions": {
     "paths": {

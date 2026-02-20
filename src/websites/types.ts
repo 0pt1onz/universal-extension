@@ -6,4 +6,5 @@ export interface MediaContext {
   episode: number | null
   episode_id: number | null
   currentTime: number
+  year?: string
 }
