@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useEffect, useState } from "react"
 
 interface StatsState {
   total_time_saved_ms: number
@@ -11,7 +11,7 @@ const DEFAULT_STATS: StatsState = {
   total_time_saved_ms: 0,
   segments_skipped: { intro: 0, recap: 0, credits: 0 },
   time_saved_by_type_ms: { intro: 0, recap: 0, credits: 0 },
-  total_submissions: 0,
+  total_submissions: 0
 }
 
 const StatsPage: React.FC = () => {
@@ -28,13 +28,15 @@ const StatsPage: React.FC = () => {
             const data = await res.json()
             communityTotal = data.total_submissions || 0
           }
-        } catch (e) { console.error("API Offline", e) }
+        } catch (e) {
+          console.error("API Offline", e)
+        }
 
         const storage = await chrome.storage.local.get(["skipButtonStats"])
         const local = storage.skipButtonStats
 
         if (local) {
-          const totalSaved = 
+          const totalSaved =
             (local.time_saved_by_type_ms.intro || 0) +
             (local.time_saved_by_type_ms.recap || 0) +
             (local.time_saved_by_type_ms.credits || 0)
@@ -46,7 +48,7 @@ const StatsPage: React.FC = () => {
             total_submissions: communityTotal
           })
         } else {
-          setStats(prev => ({ ...prev, total_submissions: communityTotal }))
+          setStats((prev) => ({ ...prev, total_submissions: communityTotal }))
         }
       } finally {
         setLoading(false)
@@ -63,21 +65,42 @@ const StatsPage: React.FC = () => {
     return `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m " : ""}${s}s`
   }
 
-  if (loading) return <div style={{ color: "#aaa", textAlign: "center" }}>Loading...</div>
+  if (loading)
+    return <div style={{ color: "#aaa", textAlign: "center" }}>Loading...</div>
 
   return (
-    <div style={{ color: "#e0e0e0", fontFamily: "sans-serif", padding: "10px" }}>
-      <h3 style={{ color: "#00ff88", borderBottom: "1px solid #333" }}>Your Statistics</h3>
-      
-      <div style={{ background: "#1e1e1e", padding: "10px", borderRadius: "8px", margin: "10px 0" }}>
-        <strong>Personal Time Saved:</strong> 
-        <span style={{ color: "#00ff88", marginLeft: "10px" }}>{formatDuration(stats.total_time_saved_ms)}</span>
+    <div
+      style={{ color: "#e0e0e0", fontFamily: "sans-serif", padding: "10px" }}>
+      <h3 style={{ color: "#00ff88", borderBottom: "1px solid #333" }}>
+        Your Statistics
+      </h3>
+
+      <div
+        style={{
+          background: "#1e1e1e",
+          padding: "10px",
+          borderRadius: "8px",
+          margin: "10px 0"
+        }}>
+        <strong>Personal Time Saved:</strong>
+        <span style={{ color: "#00ff88", marginLeft: "10px" }}>
+          {formatDuration(stats.total_time_saved_ms)}
+        </span>
       </div>
 
-      <div style={{ background: "#1e1e1e", padding: "10px", borderRadius: "8px" }}>
-        <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#888" }}>Segments Skipped</h4>
+      <div
+        style={{ background: "#1e1e1e", padding: "10px", borderRadius: "8px" }}>
+        <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#888" }}>
+          Segments Skipped
+        </h4>
         {Object.entries(stats.segments_skipped).map(([key, val]) => (
-          <div key={key} style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+          <div
+            key={key}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "4px"
+            }}>
             <span style={{ textTransform: "capitalize" }}>{key}:</span>
             <span style={{ color: "#00ff88" }}>{val}</span>
           </div>
@@ -85,7 +108,10 @@ const StatsPage: React.FC = () => {
       </div>
 
       <div style={{ marginTop: "15px", fontSize: "13px", color: "#888" }}>
-        Community Submissions: <span style={{ color: "#00ff88" }}>{stats.total_submissions.toLocaleString()}</span>
+        Community Submissions:{" "}
+        <span style={{ color: "#00ff88" }}>
+          {stats.total_submissions.toLocaleString()}
+        </span>
       </div>
     </div>
   )

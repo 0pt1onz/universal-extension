@@ -1,4 +1,5 @@
 import type { PlasmoCSConfig } from "plasmo"
+
 import { extractMediaContext } from "~/websites"
 
 export const config: PlasmoCSConfig = {
@@ -6,7 +7,6 @@ export const config: PlasmoCSConfig = {
   all_frames: true,
   run_at: "document_idle"
 }
-
 
 interface Segment {
   start_ms: number
