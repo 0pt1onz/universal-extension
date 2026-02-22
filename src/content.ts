@@ -15,6 +15,7 @@ interface Segment {
 
 interface IntroResponse {
   status: string
+  tmdb_id?: number
   intro?: Segment[]
   recap?: Segment[]
   credits?: Segment[]
@@ -34,6 +35,14 @@ interface MediaContext {
 let activeTimestamps: Record<string, Segment[]> | null = null
 let skipBtn: HTMLButtonElement | null = null
 let playbackIntervalId: ReturnType<typeof setInterval> | null = null
+let lastPlayerInfo: {
+  title: string
+  tmdb_id?: number
+  type: "tv" | "movie"
+  season?: number
+  episode?: number
+} | null = null
+let initRetryCount = 0
 
 async function recordSkip(type: string, durationMs: number) {
   const key = "skipButtonStats"
@@ -107,6 +116,8 @@ function createBtn(type: string, endMs: number) {
   document.body.appendChild(skipBtn)
 }
 
+const END_OF_VIDEO_SENTINEL_MS = 86400000
+
 function monitorPlayback() {
   if (playbackIntervalId) clearInterval(playbackIntervalId)
 
@@ -115,16 +126,21 @@ function monitorPlayback() {
     if (!video || !activeTimestamps) return
 
     const now = video.currentTime * 1000
+    const durationMs = video.duration * 1000
     let found: { type: string; end: number } | null = null
 
     for (const [type, segments] of Object.entries(activeTimestamps)) {
-      const active = segments.find(
-        (s) => now >= s.start_ms && now < s.end_ms - 500
-      )
-      if (active) {
-        found = { type, end: active.end_ms }
-        break
+      for (const s of segments) {
+        const endMs =
+          s.end_ms >= END_OF_VIDEO_SENTINEL_MS || !s.end_ms
+            ? durationMs
+            : s.end_ms
+        if (now >= s.start_ms && now < endMs - 500) {
+          found = { type, end: endMs }
+          break
+        }
       }
+      if (found) break
     }
 
     if (found) {
@@ -152,8 +168,15 @@ async function init() {
     }, 500)
   })
 
-  if (!video) return
+  if (!video) {
+    if (initRetryCount < 3) {
+      initRetryCount++
+      setTimeout(init, 5000)
+    }
+    return
+  }
 
+  initRetryCount = 0
   const ctx = extractMediaContext(
     window.location.href,
     document.title,
@@ -182,8 +205,59 @@ async function init() {
     })
 
     activeTimestamps = data
+    lastPlayerInfo = {
+      title: ctx.title || "Detected",
+      tmdb_id: res.tmdb_id ?? ctx.tmdb_id,
+      type: ctx.type,
+      season: ctx.season,
+      episode: ctx.episode
+    }
     monitorPlayback()
+  } else if (!activeTimestamps) {
+    setTimeout(init, 5000)
   }
 }
+
+chrome.runtime.onMessage.addListener(
+  (
+    msg: { action: string },
+    _sender,
+    sendResponse: (r: unknown) => void
+  ) => {
+    if (msg.action === "getPlayerInfo") {
+      const video = getActiveVideo()
+      const currentTime = video ? video.currentTime : undefined
+      if (lastPlayerInfo) {
+        sendResponse({
+          ...lastPlayerInfo,
+          currentTime:
+            typeof currentTime === "number" ? currentTime : undefined
+        })
+      } else {
+        const ctx = extractMediaContext(
+          window.location.href,
+          document.title,
+          document.body.innerText,
+          video?.currentTime ?? 0
+        ) as MediaContext
+        if (ctx?.title || ctx?.tmdb_id) {
+          sendResponse({
+            title: ctx.title || "Detected",
+            tmdb_id: ctx.tmdb_id,
+            type: ctx.type,
+            season: ctx.season,
+            episode: ctx.episode,
+            currentTime:
+              typeof currentTime === "number" ? currentTime : undefined
+          })
+        } else {
+          sendResponse(null)
+        }
+      }
+      return true
+    }
+    return false
+  }
+)
 
 init()

@@ -93,16 +93,22 @@ async function handleDiscovery(
     const result: DiscoveryResult = { status: "success", tmdb_id: tmdbId }
     const keys = ["intro", "recap", "credits", "preview"] as const
 
+    const END_OF_VIDEO_MS = 86400000
     for (const key of keys) {
       const raw = introData[key]
-      if (Array.isArray(raw)) {
-        result[key] = (raw as IntroDBSegment[])
-          .map((s) => ({
-            start_ms: s.start_ms ?? (s.start ? s.start * 1000 : 0),
-            end_ms: s.end_ms ?? (s.end ? s.end * 1000 : 0)
-          }))
-          .filter((s) => s.end_ms > s.start_ms)
-      }
+      if (!Array.isArray(raw)) continue
+      const segments = (raw as IntroDBSegment[])
+        .map((s) => {
+          const start = s.start_ms ?? (s.start ? s.start * 1000 : 0)
+          const end =
+            s.end_ms ?? (s.end ? s.end * 1000 : END_OF_VIDEO_MS)
+          return { start_ms: start, end_ms: end }
+        })
+        .filter(
+          (s) =>
+            s.end_ms > s.start_ms || s.end_ms >= END_OF_VIDEO_MS
+        )
+      if (segments.length > 0) result[key] = segments
     }
     return result
   } catch {
