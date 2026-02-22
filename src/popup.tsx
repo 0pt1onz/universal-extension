@@ -20,6 +20,7 @@ function IndexPopup() {
   const [segment, setSegment] = useState<SegmentType>("intro")
   const [status, setStatus] = useState("")
   const [statusColor, setStatusColor] = useState("")
+  const [setupPageKey, setSetupPageKey] = useState("")
 
   const loadPlayerInfo = useCallback(async () => {
     const [tab] = await api.tabs.query({ active: true, currentWindow: true })
@@ -73,6 +74,14 @@ function IndexPopup() {
     })
   }, [loadPlayerInfo])
 
+  useEffect(() => {
+    if (view === "setup") {
+      api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
+        setSetupPageKey(typeof introdb_api_key === "string" ? introdb_api_key : "")
+      })
+    }
+  }, [view])
+
   async function handleSaveKey() {
     const key = (
       document.getElementById("api-key-input") as HTMLInputElement
@@ -81,6 +90,9 @@ function IndexPopup() {
       await api.storage.local.set({ introdb_api_key: key })
       setView("main")
       loadPlayerInfo()
+    } else {
+      await api.storage.local.remove("introdb_api_key")
+      setSetupPageKey("")
     }
   }
 
@@ -134,7 +146,10 @@ function IndexPopup() {
   }
 
   function handleClearKey() {
-    api.storage.local.remove("introdb_api_key", () => setView("setup"))
+    api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
+      setSetupPageKey(typeof introdb_api_key === "string" ? introdb_api_key : "")
+      setView("setup")
+    })
   }
 
   const goToStats = () => {
@@ -246,7 +261,9 @@ function IndexPopup() {
                 style={{ height: 28, width: "auto", display: "block" }}
               />
             </a>
-            {view === "stats" ? (
+            {view !== "setup" && (
+              <>
+                {view === "stats" ? (
               <button
                 onClick={goToMain}
                 className="liquid-glass-button back-button"
@@ -260,6 +277,8 @@ function IndexPopup() {
                 style={{ fontSize: 16, fontWeight: 700 }}>
                 Stats
               </button>
+            )}
+            </>
             )}
           </div>
 
@@ -291,7 +310,12 @@ function IndexPopup() {
               border: "1px solid rgba(255,255,255,0.08)",
               boxShadow: "0 15px 35px rgba(0,0,0,0.6)"
             }}>
-            {view === "setup" && <SetupPage onSaveKey={handleSaveKey} />}
+            {view === "setup" && (
+              <SetupPage
+                initialKey={setupPageKey}
+                onSaveKey={handleSaveKey}
+              />
+            )}
             {view === "main" && (
               <MainPage
                 mediaTitle={mediaTitle}

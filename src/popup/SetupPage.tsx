@@ -1,4 +1,10 @@
-export function SetupPage({ onSaveKey }: { onSaveKey: () => void }) {
+export function SetupPage({
+  initialKey = "",
+  onSaveKey
+}: {
+  initialKey?: string
+  onSaveKey: () => void
+}) {
   return (
     <div>
       <label
@@ -14,9 +20,11 @@ export function SetupPage({ onSaveKey }: { onSaveKey: () => void }) {
         API Key
       </label>
       <input
+        key={initialKey || "empty"}
         id="api-key-input"
         type="password"
         placeholder="Enter your API key"
+        defaultValue={initialKey}
         style={{
           width: "100%",
           minWidth: 0,
