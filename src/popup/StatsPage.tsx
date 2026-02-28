@@ -62,8 +62,14 @@ const StatsPage: React.FC = () => {
             (local.time_saved_by_type_ms?.recap || 0) +
             (local.time_saved_by_type_ms?.credits || 0)
           baseStats.total_time_saved_ms = totalSaved
-          baseStats.segments_skipped = { ...DEFAULT_STATS.segments_skipped, ...local.segments_skipped }
-          baseStats.time_saved_by_type_ms = { ...DEFAULT_STATS.time_saved_by_type_ms, ...local.time_saved_by_type_ms }
+          baseStats.segments_skipped = {
+            ...DEFAULT_STATS.segments_skipped,
+            ...local.segments_skipped
+          }
+          baseStats.time_saved_by_type_ms = {
+            ...DEFAULT_STATS.time_saved_by_type_ms,
+            ...local.time_saved_by_type_ms
+          }
         }
 
         setApiKeyError(null)
@@ -84,9 +90,7 @@ const StatsPage: React.FC = () => {
                   "API key not accepted. Check or regenerate key at theintrodb.org"
                 )
               } else {
-                setApiKeyError(
-                  "Could not load account stats. Try again later."
-                )
+                setApiKeyError("Could not load account stats. Try again later.")
               }
             } else {
               const tsMs = userData.total_time_saved_ms
@@ -102,10 +106,8 @@ const StatsPage: React.FC = () => {
                   accepted: Number(userData.accepted) || 0,
                   pending: Number(userData.pending) || 0,
                   rejected: Number(userData.rejected) || 0,
-                  acceptance_rate:
-                    Number(userData.acceptance_rate) || 0,
-                  current_streak:
-                    Number(userData.current_streak) || 0,
+                  acceptance_rate: Number(userData.acceptance_rate) || 0,
+                  current_streak: Number(userData.current_streak) || 0,
                   best_streak: Number(userData.best_streak) || 0
                 }
               }

@@ -219,19 +219,14 @@ async function init() {
 }
 
 chrome.runtime.onMessage.addListener(
-  (
-    msg: { action: string },
-    _sender,
-    sendResponse: (r: unknown) => void
-  ) => {
+  (msg: { action: string }, _sender, sendResponse: (r: unknown) => void) => {
     if (msg.action === "getPlayerInfo") {
       const video = getActiveVideo()
       const currentTime = video ? video.currentTime : undefined
       if (lastPlayerInfo) {
         sendResponse({
           ...lastPlayerInfo,
-          currentTime:
-            typeof currentTime === "number" ? currentTime : undefined
+          currentTime: typeof currentTime === "number" ? currentTime : undefined
         })
       } else {
         const ctx = extractMediaContext(

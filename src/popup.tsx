@@ -77,7 +77,9 @@ function IndexPopup() {
   useEffect(() => {
     if (view === "setup") {
       api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
-        setSetupPageKey(typeof introdb_api_key === "string" ? introdb_api_key : "")
+        setSetupPageKey(
+          typeof introdb_api_key === "string" ? introdb_api_key : ""
+        )
       })
     }
   }, [view])
@@ -147,7 +149,9 @@ function IndexPopup() {
 
   function handleClearKey() {
     api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
-      setSetupPageKey(typeof introdb_api_key === "string" ? introdb_api_key : "")
+      setSetupPageKey(
+        typeof introdb_api_key === "string" ? introdb_api_key : ""
+      )
       setView("setup")
     })
   }
@@ -264,21 +268,21 @@ function IndexPopup() {
             {view !== "setup" && (
               <>
                 {view === "stats" ? (
-              <button
-                onClick={goToMain}
-                className="liquid-glass-button back-button"
-                style={{ fontSize: 14, padding: "6px 12px" }}>
-                &larr; Back
-              </button>
-            ) : (
-              <button
-                onClick={goToStats}
-                className="liquid-glass-button"
-                style={{ fontSize: 16, fontWeight: 700 }}>
-                Stats
-              </button>
-            )}
-            </>
+                  <button
+                    onClick={goToMain}
+                    className="liquid-glass-button back-button"
+                    style={{ fontSize: 14, padding: "6px 12px" }}>
+                    &larr; Back
+                  </button>
+                ) : (
+                  <button
+                    onClick={goToStats}
+                    className="liquid-glass-button"
+                    style={{ fontSize: 16, fontWeight: 700 }}>
+                    Stats
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -311,10 +315,7 @@ function IndexPopup() {
               boxShadow: "0 15px 35px rgba(0,0,0,0.6)"
             }}>
             {view === "setup" && (
-              <SetupPage
-                initialKey={setupPageKey}
-                onSaveKey={handleSaveKey}
-              />
+              <SetupPage initialKey={setupPageKey} onSaveKey={handleSaveKey} />
             )}
             {view === "main" && (
               <MainPage

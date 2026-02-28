@@ -1,10 +1,9 @@
 ---
 name: Site Support Request
 about: Request support for a new streaming site
-title: '[SITE] '
+title: "[SITE] "
 labels: enhancement
-assignees: ''
-
+assignees: ""
 ---
 
 **Is there a specific streaming site you'd like to see supported?**
