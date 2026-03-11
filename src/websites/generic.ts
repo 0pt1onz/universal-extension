@@ -10,11 +10,18 @@ export function extractGeneric(
   let season: number | null = null
   let episode: number | null = null
 
-  const watchPattern = url.match(/\/watch\/(\d+)(?:\/(\d+))?(?:\/(\d+))?/i)
-  if (watchPattern) {
-    tmdb_id = parseInt(watchPattern[1], 10)
-    if (watchPattern[2]) season = parseInt(watchPattern[2], 10)
-    if (watchPattern[3]) episode = parseInt(watchPattern[3], 10)
+  const tvPattern = url.match(/\/tv\/(\d+)\/(\d+)\/(\d+)/i)
+  if (tvPattern) {
+    tmdb_id = parseInt(tvPattern[1], 10)
+    season = parseInt(tvPattern[2], 10)
+    episode = parseInt(tvPattern[3], 10)
+  } else {
+    const watchPattern = url.match(/\/watch\/(\d+)(?:\/(\d+))?(?:\/(\d+))?/i)
+    if (watchPattern) {
+      tmdb_id = parseInt(watchPattern[1], 10)
+      if (watchPattern[2]) season = parseInt(watchPattern[2], 10)
+      if (watchPattern[3]) episode = parseInt(watchPattern[3], 10)
+    }
   }
 
   const isTV =
