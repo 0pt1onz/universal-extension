@@ -72,14 +72,14 @@ function createBtn(type: string, endMs: number) {
   if (skipBtn) return
 
   skipBtn = document.createElement("button")
-  skipBtn.textContent = `SKIP ${type.toUpperCase()}`
+  skipBtn.innerHTML = `SKIP ${type.toUpperCase()} <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-skip-forward"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`
 
   Object.assign(skipBtn.style, {
     position: "fixed",
     right: "40px",
     bottom: "130px",
     padding: "14px 28px",
-    backgroundColor: "rgba(255, 255, 255)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     color: "#34D399",
     zIndex: "2147483647",
     fontWeight: "900",
@@ -92,7 +92,10 @@ function createBtn(type: string, endMs: number) {
     fontFamily: "sans-serif",
     fontSize: "12px",
     transition: "transform 0.1s ease, background-color 0.2s ease",
-    backdropFilter: "blur(4px)"
+    backdropFilter: "blur(4px)",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px"
   })
 
   // Add hover effect
@@ -137,7 +140,9 @@ function monitorPlayback() {
 
   playbackIntervalId = setInterval(() => {
     const video = getActiveVideo()
-    if (!video || !activeTimestamps) return
+    if (!video || !activeTimestamps) {
+      return
+    }
 
     const now = video.currentTime * 1000
     const durationMs = video.duration * 1000
@@ -197,6 +202,7 @@ async function init() {
   }
 
   initRetryCount = 0
+
   const ctx = extractMediaContext(
     window.location.href,
     document.title,
@@ -214,6 +220,8 @@ async function init() {
     }
   })) as IntroResponse
 
+  console.log("IntroDB API Response:", res)
+
   if (res?.status === "success") {
     const data: Record<string, Segment[]> = {}
     const keys = ["intro", "recap", "credits", "preview"] as const
@@ -224,6 +232,7 @@ async function init() {
       }
     })
 
+    console.log("Parsed segments:", data)
     activeTimestamps = data
     lastPlayerInfo = {
       title: ctx.title || "Detected",
