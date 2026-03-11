@@ -134,144 +134,84 @@ const StatsPage: React.FC = () => {
   }
 
   if (loading)
-    return <div style={{ color: "#aaa", textAlign: "center" }}>Loading...</div>
+    return (
+      <div className="text-gray-400 text-center rounded-4xl">Loading...</div>
+    )
 
   return (
-    <div
-      style={{ color: "#e0e0e0", fontFamily: "sans-serif", padding: "10px" }}>
-      <h3 style={{ color: "#00ff88", borderBottom: "1px solid #333" }}>
+    <div className="text-gray-200 font-sans">
+      <h3 className="text-green-400 border-b border-gray-700">
         Your Statistics
       </h3>
 
-      <div
-        style={{
-          background: "#1e1e1e",
-          padding: "10px",
-          borderRadius: "8px",
-          margin: "10px 0"
-        }}>
+      <div className="my-2.5">
         <strong>Personal Time Saved:</strong>
-        <span style={{ color: "#00ff88", marginLeft: "10px" }}>
+        <span className="text-green-400 ml-2.5">
           {formatDuration(stats.total_time_saved_ms)}
         </span>
       </div>
 
-      <div
-        style={{ background: "#1e1e1e", padding: "10px", borderRadius: "8px" }}>
-        <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#888" }}>
-          Segments Skipped
-        </h4>
+      <div className="my-2.5">
+        <h4 className="m-0 mb-2.5 text-sm text-gray-400">Segments Skipped</h4>
         {Object.entries(stats.segments_skipped).map(([key, val]) => (
-          <div
-            key={key}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
-            <span style={{ textTransform: "capitalize" }}>{key}:</span>
-            <span style={{ color: "#00ff88" }}>{val}</span>
+          <div key={key} className="flex justify-between mb-1">
+            <span className="capitalize">{key}:</span>
+            <span className="text-green-400">{val}</span>
           </div>
         ))}
       </div>
 
       {stats.userSubmissions && (
-        <div
-          style={{
-            background: "#1e1e1e",
-            padding: "10px",
-            borderRadius: "8px",
-            marginTop: "10px"
-          }}>
-          <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#888" }}>
-            Your Submissions
-          </h4>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
+        <div className="mt-2.5">
+          <h4 className="m-0 mb-2.5 text-sm text-gray-400">Your Submissions</h4>
+          <div className="flex justify-between mb-1">
             <span>Total:</span>
-            <span style={{ color: "#00ff88" }}>
+            <span className="text-green-400">
               {stats.userSubmissions.total.toLocaleString()}
             </span>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
+          <div className="flex justify-between mb-1">
             <span>Accepted:</span>
-            <span style={{ color: "#00ff88" }}>
+            <span className="text-green-400">
               {stats.userSubmissions.accepted.toLocaleString()}
             </span>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
+          <div className="flex justify-between mb-1">
             <span>Pending:</span>
-            <span style={{ color: "#00ff88" }}>
+            <span className="text-green-400">
               {stats.userSubmissions.pending.toLocaleString()}
             </span>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
+          <div className="flex justify-between mb-1">
             <span>Acceptance rate:</span>
-            <span style={{ color: "#00ff88" }}>
+            <span className="text-green-400">
               {stats.userSubmissions.acceptance_rate.toFixed(1)}%
             </span>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
+          <div className="flex justify-between mb-1">
             <span>Current streak:</span>
-            <span style={{ color: "#00ff88" }}>
+            <span className="text-green-400">
               {stats.userSubmissions.current_streak}
             </span>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between"
-            }}>
+          <div className="flex justify-between">
             <span>Best streak:</span>
-            <span style={{ color: "#00ff88" }}>
+            <span className="text-green-400">
               {stats.userSubmissions.best_streak}
             </span>
           </div>
         </div>
       )}
 
-      <div style={{ marginTop: "15px", fontSize: "13px", color: "#888" }}>
+      <div className="mt-3.5 text-[13px] text-gray-400">
         Community Submissions:{" "}
-        <span style={{ color: "#00ff88" }}>
+        <span className="text-green-400">
           {stats.total_submissions.toLocaleString()}
         </span>
       </div>
 
       {apiKeyError && (
-        <div
-          style={{
-            marginTop: "12px",
-            padding: "8px 10px",
-            background: "rgba(255, 68, 68, 0.15)",
-            border: "1px solid rgba(255, 68, 68, 0.4)",
-            borderRadius: "8px",
-            fontSize: "12px",
-            color: "#ff8888"
-          }}>
+        <div className="mt-3 p-2.5 bg-red-500/10 border border-red-500/40 rounded-xl text-xs text-red-300">
           {apiKeyError}
         </div>
       )}

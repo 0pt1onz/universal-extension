@@ -1,3 +1,5 @@
+import "~style.css"
+
 import { useCallback, useEffect, useState } from "react"
 import smallLogo from "url:../assets/small-logo.svg"
 
@@ -146,7 +148,7 @@ function IndexPopup() {
       })
       if (res.ok) {
         setStatus("Submitted successfully")
-        setStatusColor("#00ff88")
+        setStatusColor("text-green-400")
       } else {
         const errData = await res.json().catch(() => ({}))
         const msg =
@@ -154,11 +156,11 @@ function IndexPopup() {
             ? errData.error
             : errData?.message ?? "Failed"
         setStatus(`${msg}`)
-        setStatusColor("#ff4444")
+        setStatusColor("text-red-500")
       }
     } catch {
       setStatus("Connection failed")
-      setStatusColor("#ff4444")
+      setStatusColor("text-red-500")
     }
   }
 
@@ -187,114 +189,28 @@ function IndexPopup() {
   return (
     <>
       <ErrorDisplay message={errorMessage} />
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap');
-        html, body {
-          margin: 0;
-          padding: 0;
-          background: #0a0a0a;
-          color: #fff;
-          box-sizing: border-box;
-          font-family: 'Ubuntu', sans-serif;
-        }
-        *, *::before, *::after { box-sizing: inherit; }
-        
-        .liquid-glass-button {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px 16px;
-          font-size: 14px;
-          font-weight: 500;
-          color: #00ff88; /* Neon green text */
-          background: rgba(25, 25, 25, 0.8);
-          border: 1px solid rgba(0, 255, 136, 0.3);
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          backdrop-filter: blur(10px);
-          box-shadow: 
-             0 0 15px rgba(0, 255, 136, 0.2),
-             inset 0 0 15px rgba(0, 255, 136, 0.1);
-          text-decoration: none;
-        }
-        
-        .liquid-glass-button:hover {
-          background: rgba(30, 30, 30, 0.9);
-          box-shadow: 
-             0 0 20px rgba(0, 255, 136, 0.4),
-             inset 0 0 20px rgba(0, 255, 136, 0.2);
-          transform: translateY(-2px);
-        }
-        
-        .liquid-glass-button:active {
-          transform: translateY(1px);
-          box-shadow: 
-             0 0 10px rgba(0, 255, 136, 0.3),
-             inset 0 0 10px rgba(0, 255, 136, 0.15);
-        }
-        
-        .back-button {
-          background: rgba(100, 100, 100, 0.3);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          color: #ffffff;
-          margin-bottom: 15px;
-        }
-        
-        .back-button:hover {
-           background: rgba(120, 120, 120, 0.4);
-           box-shadow: 
-             0 0 15px rgba(255, 255, 255, 0.2),
-             inset 0 0 15px rgba(255, 255, 255, 0.1);
-        }
-      `}</style>
-      <div
-        style={{
-          boxSizing: "border-box",
-          width: 320,
-          maxWidth: "100%",
-          margin: 0,
-          padding: 0,
-          overflow: "hidden"
-        }}>
-        <div
-          style={{
-            boxSizing: "border-box",
-            width: "100%",
-            padding: "20px",
-            borderTop: "2px solid #00ff88"
-          }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 15
-            }}>
+
+      <div className="box-border w-80 max-w-full m-0 p-0 overflow-hidden bg-gray-950 text-white font-ubuntu">
+        <div className="box-border w-full p-5 border-t-2 border-green-400">
+          <div className="flex items-center justify-between mb-4">
             <a
               href="https://theintrodb.org"
               target="_blank"
               rel="noopener noreferrer">
-              <img
-                src={smallLogo}
-                alt="TIDB"
-                style={{ height: 28, width: "auto", display: "block" }}
-              />
+              <img src={smallLogo} alt="TIDB" className="h-7 w-auto block" />
             </a>
             {view !== "setup" && (
               <>
                 {view === "stats" ? (
                   <button
                     onClick={goToMain}
-                    className="liquid-glass-button back-button"
-                    style={{ fontSize: 14, padding: "6px 12px" }}>
+                    className="liquid-glass-button back-button text-sm py-1.5 px-3">
                     &larr; Back
                   </button>
                 ) : (
                   <button
                     onClick={goToStats}
-                    className="liquid-glass-button"
-                    style={{ fontSize: 16, fontWeight: 700 }}>
+                    className="liquid-glass-button text-base font-bold">
                     Stats
                   </button>
                 )}
@@ -303,14 +219,7 @@ function IndexPopup() {
           </div>
 
           {view === "setup" && (
-            <p
-              style={{
-                display: "block",
-                fontSize: 12,
-                color: "grey",
-                fontWeight: 700,
-                marginBottom: 14
-              }}>
+            <p className="block text-xs text-gray-400 font-bold mb-3.5">
               You&apos;re getting skip segments from TheIntroDB!
               <br />
               <br />
@@ -319,17 +228,7 @@ function IndexPopup() {
             </p>
           )}
 
-          <div
-            style={{
-              boxSizing: "border-box",
-              width: "100%",
-              overflow: "hidden",
-              background: "rgba(25, 25, 25, 0.8)",
-              padding: 18,
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 15px 35px rgba(0,0,0,0.6)"
-            }}>
+          <div className="box-border w-full overflow-hidden bg-gray-900/60 p-[18px] rounded-4xl border border-white/[.08] shadow-[0_15px_35px_rgba(0,0,0,0.6)]">
             {view === "setup" && (
               <SetupPage initialKey={setupPageKey} onSaveKey={handleSaveKey} />
             )}

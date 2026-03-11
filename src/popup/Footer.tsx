@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 
 import { api } from "./api"
 
+import "~style.css"
+
 export function Footer() {
   const version = api.runtime.getManifest().version ?? "0.0.0"
   const [isEnabled, setIsEnabled] = useState(true)
@@ -35,49 +37,25 @@ export function Footer() {
     })
   }
 
-  const linkStyle = {
-    fontSize: 10,
-    color: "#AAA",
-    textDecoration: "none" as const,
-    display: "inline-block" as const,
-    transition: "color 0.2s"
-  }
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: 12,
-        paddingTop: 8
-      }}>
-      <span style={linkStyle}>v{version}</span>
-      <label
-        style={{
-          fontSize: 10,
-          color: "#AAA",
-          display: "flex",
-          alignItems: "center"
-        }}>
-        Enable on {hostname}
+    <div className="flex items-center justify-between pt-2 mt-3">
+      <span className="inline-block text-xs text-gray-400 no-underline transition-colors duration-200">
+        v{version}
+      </span>
+      <label className="flex items-center text-xs text-gray-400">
+        {isEnabled ? "Enabled" : "Disabled"} on {hostname}
         <input
           type="checkbox"
           checked={isEnabled}
           onChange={handleToggle}
-          style={{ marginLeft: 4, accentColor: "#00ff88" }}
+          className="ml-1 accent-green-400"
         />
       </label>
       <a
         href="https://github.com/TheIntroDB/universal-extension"
         target="_blank"
         rel="noopener noreferrer"
-        style={linkStyle}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = "#DDD"
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = "#AAA"
-        }}>
+        className="inline-block text-xs text-gray-400 no-underline transition-colors duration-200 hover:text-gray-300">
         Github
       </a>
     </div>

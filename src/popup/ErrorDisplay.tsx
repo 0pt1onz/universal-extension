@@ -2,21 +2,7 @@ export function ErrorDisplay({ message }: { message: string | null }) {
   if (!message) return null
 
   return (
-    <div
-      style={{
-        background: "#ff4444",
-        color: "#fff",
-        padding: "10px",
-        textAlign: "center",
-        fontSize: "12px",
-        fontWeight: "bold",
-        width: "100%",
-        boxSizing: "border-box",
-        position: "absolute",
-        top: 0,
-        left: 0,
-        zIndex: 100
-      }}>
+    <div className="bg-red-500 text-white p-2.5 text-center text-xs font-bold w-full box-border absolute top-0 left-0 z-50 rounded-4xl">
       {message}
     </div>
   )

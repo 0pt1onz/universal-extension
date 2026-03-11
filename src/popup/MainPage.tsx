@@ -27,66 +27,23 @@ export function MainPage({
 }: MainPageProps) {
   return (
     <>
-      <div
-        style={{
-          boxSizing: "border-box",
-          fontSize: 12,
-          fontWeight: 500,
-          marginBottom: 4,
-          borderLeft: "3px solid #00ff88",
-          padding: "4px 10px",
-          background:
-            "linear-gradient(90deg, rgba(0,255,136,0.1), transparent)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap"
-        }}>
+      <h3 className="text-green-400 border-b border-gray-700 pb-2.5">Submit</h3>
+      <div className="box-border text-xs font-medium mb-1 border-l-[3px] border-green-400 p-1 pl-2.5 bg-gradient-to-r from-green-400/10 to-transparent overflow-hidden text-ellipsis whitespace-nowrap">
         {mediaTitle}
       </div>
-      <div
-        style={{
-          fontSize: 10,
-          color: "#777",
-          marginBottom: 12,
-          paddingLeft: 13
-        }}>
-        {mediaMeta}
-      </div>
+      <div className="text-[10px] text-gray-500 mb-3 pl-3.5">{mediaMeta}</div>
 
-      <label
-        style={{
-          display: "block",
-          fontSize: 9,
-          fontWeight: 700,
-          color: "#00ff88",
-          marginBottom: 6,
-          textTransform: "uppercase",
-          letterSpacing: "0.5px"
-        }}>
+      <label className="block text-[9px] font-bold text-green-400 mb-1.5 uppercase tracking-[0.5px]">
         Segment
       </label>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 8,
-          marginBottom: 12
-        }}>
+      <div className="grid grid-cols-2 gap-2 mb-3">
         {(["intro", "recap", "credits", "preview"] as const).map((s) => (
           <button
             key={s}
             type="button"
             data-segment={s}
             onClick={() => setSegment(s)}
-            style={{
-              padding: 10,
-              background: segment === s ? "rgba(0,255,136,0.12)" : "#151515",
-              border: `1px solid ${segment === s ? "#00ff88" : "rgba(255,255,255,0.08)"}`,
-              borderRadius: 8,
-              color: segment === s ? "#00ff88" : "#777",
-              cursor: "pointer",
-              fontSize: 11
-            }}>
+            className={`border-gradient-pill p-2.5 cursor-pointer text-[11px] ${segment === s ? "text-green-400 hover:text-green-400 border-green-400/30" : "text-gray-500"}`}>
             {s === "intro"
               ? "Intro"
               : s === "recap"
@@ -98,102 +55,39 @@ export function MainPage({
         ))}
       </div>
 
-      <label
-        style={{
-          display: "block",
-          fontSize: 9,
-          fontWeight: 700,
-          color: "#00ff88",
-          marginBottom: 6,
-          textTransform: "uppercase",
-          letterSpacing: "0.5px"
-        }}>
+      <label className="block text-[9px] font-bold text-green-400 mb-1.5 uppercase tracking-[0.5px]">
         Time (MM:SS)
       </label>
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          marginBottom: 12,
-          minWidth: 0
-        }}>
+      <div className="flex gap-2.5 mb-3 min-w-0">
         <input
           id="start_sec"
           placeholder="00:30"
           value={startSec}
           onChange={(e) => setStartSec(e.target.value)}
-          style={{
-            flex: "1 1 0",
-            minWidth: 0,
-            padding: 11,
-            background: "#151515",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 6,
-            boxSizing: "border-box",
-            color: "white",
-            fontSize: 13
-          }}
+          className="flex-1 min-w-0 p-[11px] bg-[#151515] border border-white/[.08] rounded-4xl box-border text-white text-[13px]"
         />
         <input
           id="end_sec"
           placeholder="01:30"
-          style={{
-            flex: "1 1 0",
-            minWidth: 0,
-            padding: 11,
-            background: "#151515",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 6,
-            boxSizing: "border-box",
-            color: "white",
-            fontSize: 13
-          }}
+          className="flex-1 min-w-0 p-[11px] bg-[#151515] border border-white/[.08] rounded-4xl box-border text-white text-[13px]"
         />
       </div>
 
       <button
         type="button"
         onClick={onSubmit}
-        style={{
-          background: "#00ff88",
-          color: "#000",
-          border: "none",
-          padding: 14,
-          width: "100%",
-          cursor: "pointer",
-          borderRadius: 6,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          fontSize: 11,
-          letterSpacing: "1px",
-          marginTop: 5
-        }}>
+        className="border-gradient-pill p-3.5 w-full cursor-pointer font-bold uppercase text-[11px] tracking-[1px] mt-[5px] text-green-400 hover:text-green-400 border-green-400/30">
         Accept
       </button>
       <div
         id="status"
-        style={{
-          fontSize: 10,
-          textAlign: "center",
-          marginTop: 10,
-          minHeight: "1.2em",
-          color: statusColor
-        }}>
+        className={`text-[10px] text-center mt-2.5 min-h-[1.2em] ${statusColor}`}>
         {status}
       </div>
       <button
         type="button"
         onClick={onDisconnect}
-        style={{
-          background: "transparent",
-          color: "#777",
-          border: "none",
-          fontSize: 9,
-          marginTop: 10,
-          width: "100%",
-          cursor: "pointer",
-          textDecoration: "underline"
-        }}>
+        className="border-gradient-pill p-2.5 w-full cursor-pointer text-[9px] text-red-500">
         Disconnect Token
       </button>
     </>

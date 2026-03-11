@@ -79,18 +79,31 @@ function createBtn(type: string, endMs: number) {
     right: "40px",
     bottom: "130px",
     padding: "14px 28px",
-    backgroundColor: "#ffffff",
-    color: "#000",
+    backgroundColor: "rgba(255, 255, 255)",
+    color: "#34D399",
     zIndex: "2147483647",
     fontWeight: "900",
-    borderRadius: "8px",
+    borderRadius: "9999px",
     cursor: "pointer",
-    border: "none",
+    border: "1px solid rgba(255, 255, 255, 0.1)",
     outline: "none",
-    boxShadow: "0 0 20px rgba(0,255,136,0.6)",
+    boxShadow:
+      "0 4px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)",
     fontFamily: "sans-serif",
     fontSize: "12px",
-    transition: "transform 0.1s ease"
+    transition: "transform 0.1s ease, background-color 0.2s ease",
+    backdropFilter: "blur(4px)"
+  })
+
+  // Add hover effect
+  skipBtn.addEventListener("mouseenter", () => {
+    skipBtn.style.backgroundColor = "rgba(255, 255, 255, 0.1)"
+    skipBtn.style.color = "#ffffff"
+  })
+
+  skipBtn.addEventListener("mouseleave", () => {
+    skipBtn.style.backgroundColor = "rgba(255, 255, 255, 0.05)"
+    skipBtn.style.color = "#34D399"
   })
 
   skipBtn.onclick = async (e) => {
