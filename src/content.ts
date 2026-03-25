@@ -182,6 +182,21 @@ async function init() {
 
   const video = getActiveVideo()
 
+  // Skip if the page title indicates an error or not found page
+  const invalidTitles = [
+    "page not found",
+    "404",
+    "error",
+    "loading...",
+    "redirecting..."
+  ]
+  const cleanTitle = document.title.trim().toLowerCase()
+  if (invalidTitles.some((invalid) => cleanTitle.includes(invalid))) {
+    console.log("Skipping invalid page title:", document.title)
+    setTimeout(init, 3000) // Retry in 3 seconds
+    return
+  }
+
   const ctx = (await extractMediaContext(
     window.location.href,
     document.title,

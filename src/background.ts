@@ -103,9 +103,21 @@ async function handleDiscovery(
 
     const sNum = data.season ?? 1
     const eNum = data.episode ?? 1
+
+    // Get the introdb_api_key from storage for authentication
+    const storage = typeof browser !== "undefined" ? browser : chrome
+    const { introdb_api_key } = await storage.storage.local.get([
+      "introdb_api_key"
+    ])
+
+    const headers: HeadersInit = { Accept: "application/json" }
+    if (introdb_api_key) {
+      headers.Authorization = `Bearer ${introdb_api_key}`
+    }
+
     const introRes = await fetch(
       `${INTRODB_API}/media?tmdb_id=${tmdbId}${data.isTV ? `&season=${sNum}&episode=${eNum}` : ""}`,
-      { headers: { Accept: "application/json" } }
+      { headers }
     )
 
     if (!introRes.ok) {

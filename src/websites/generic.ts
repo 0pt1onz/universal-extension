@@ -7,10 +7,7 @@ function cleanTitle(title: string, domain: string): string {
     .replace(/-\d{4}-\d+$/, "") // Remove trailing year and ID for nepu.to
     .replace(new RegExp(domain.replace(/\./g, "\\."), "gi"), "")
     .replace(new RegExp(domain.split(".")[0], "gi"), "")
-    .replace(
-      /Watching|Online|HD|1080p|720p|4K|Stream/gi,
-      ""
-    )
+    .replace(/Watching|Online|HD|1080p|720p|4K|Stream/gi, "")
     .replace(/\s*[-|–|—:]\s*(Watch|Stream|Full|Movie|TV\s*Show|Series).*$/i, "")
     .split(/[-|–|—]/)[0]
     .trim()
@@ -71,12 +68,15 @@ export async function extractGeneric(
     season !== null || /\/tv\//i.test(url) || /tmdb-tv-\d+/i.test(url)
   const type = isTV ? "tv" : "movie"
 
-  // 4. Extract year
+  // 4. Extract year from URL path first, then fall back to document
+  const urlYearMatch =
+    url.match(/-(19|20)\d{2}-/) || url.match(/-(19|20)\d{2}$/)
   const yearMatch =
+    urlYearMatch ||
     documentTitle.match(/\((19|20)\d{2}\)/) ||
     bodyText.match(/\b(19|20)\d{2}\b/)
   const extractedYear = yearMatch
-    ? yearMatch[0].replace(/[()]/g, "")
+    ? yearMatch[0].replace(/[-()]/g, "")
     : undefined
 
   // 5. Extract domain for title cleaning
@@ -88,13 +88,38 @@ export async function extractGeneric(
     // ignore
   }
 
-  // 6. Extract title from URL path
+  // 6. Extract title from URL path - try multiple patterns
   let title: string | undefined
+  let titleFromUrl = false
   try {
     const path = new URL(url).pathname
-    const match = path.match(/\/(?:movie|tv)\/(.+?)(?:-\d{4}-\d{4}-\d+)?$/i)
+
+    // Pattern 1: /movies/title-year-id or /movie/title-year-id
+    let match = path.match(
+      /\/(?:movie|movies|tv)\/(.+?)(?:-(19|20)\d{2})?(?:-[a-z0-9]+)?$/i
+    )
+
+    // Pattern 2: /watch/title-year or /watch/title
+    if (!match) {
+      match = path.match(/\/watch\/(.+?)(?:-(19|20)\d{2})?(?:-[a-z0-9]+)?$/i)
+    }
+
+    // Pattern 3: /film/title or /show/title
+    if (!match) {
+      match = path.match(
+        /\/(?:film|show|video)\/(.+?)(?:-(19|20)\d{2})?(?:-[a-z0-9]+)?$/i
+      )
+    }
+
     if (match && match[1]) {
       title = match[1].replace(/-/g, " ")
+      // Clean up common streaming site suffixes
+      title = title.replace(
+        /\s+(full\s+movie|watch\s+online|stream\s+free)$/i,
+        ""
+      )
+      titleFromUrl = true
+      console.log("Generic extractor: Found title from URL:", title)
     }
   } catch {
     // ignore
@@ -103,6 +128,25 @@ export async function extractGeneric(
   // 7. Clean title from document if not found in URL
   if (!title) {
     title = cleanTitle(documentTitle, domain)
+    console.log("Generic extractor: Using title from document:", title)
+  }
+
+  // 8. Validate title - only validate titles that came from document.title
+  if (!titleFromUrl && title) {
+    // Only validate if title came from document.title, not from URL extraction
+    const invalidTitles = [
+      "page not found",
+      "404",
+      "error",
+      "loading...",
+      "redirecting...",
+      "untitled"
+    ]
+    if (
+      invalidTitles.some((invalid) => title.toLowerCase().includes(invalid))
+    ) {
+      title = undefined
+    }
   }
 
   // 8. Return raw data for further processing
