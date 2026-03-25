@@ -4,9 +4,13 @@ function cleanTitle(title: string, domain: string): string {
   return title
     .replace(/\s*\(\d{4}\)\s*/g, "") // Remove year in parentheses
     .replace(/\s*\b(19|20)\d{2}\b\s*/g, "") // Remove standalone year
+    .replace(/-\d{4}-\d+$/, "") // Remove trailing year and ID for nepu.to
     .replace(new RegExp(domain.replace(/\./g, "\\."), "gi"), "")
     .replace(new RegExp(domain.split(".")[0], "gi"), "")
-    .replace(/Watching|Online|Free|HD|1080p|720p|4K|Stream/gi, "")
+    .replace(
+      /Watching|Online|HD|1080p|720p|4K|Stream/gi,
+      ""
+    )
     .replace(/\s*[-|–|—:]\s*(Watch|Stream|Full|Movie|TV\s*Show|Series).*$/i, "")
     .split(/[-|–|—]/)[0]
     .trim()
@@ -84,10 +88,24 @@ export async function extractGeneric(
     // ignore
   }
 
-  // 6. Clean title
-  const title = cleanTitle(documentTitle, domain)
+  // 6. Extract title from URL path
+  let title: string | undefined
+  try {
+    const path = new URL(url).pathname
+    const match = path.match(/\/(?:movie|tv)\/(.+?)(?:-\d{4}-\d{4}-\d+)?$/i)
+    if (match && match[1]) {
+      title = match[1].replace(/-/g, " ")
+    }
+  } catch {
+    // ignore
+  }
 
-  // 7. Return raw data for further processing
+  // 7. Clean title from document if not found in URL
+  if (!title) {
+    title = cleanTitle(documentTitle, domain)
+  }
+
+  // 8. Return raw data for further processing
   return {
     title: title || "Untitled",
     tmdb_id,
