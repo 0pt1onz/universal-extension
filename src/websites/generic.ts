@@ -41,8 +41,24 @@ export async function extractGeneric(
     ? yearMatch[0].replace(/[()]/g, "")
     : undefined
 
+  // Extract domain from URL to remove variations from title
+  let domain = ""
+  try {
+    const urlObj = new URL(url)
+    domain = urlObj.hostname.replace(/^www\./, "")
+  } catch {
+    // Invalid URL, skip domain cleaning
+  }
+
+  // Remove common streaming-related keywords and domain variations
   const cleanTitle = documentTitle
-    .replace(/XPrime|Cineby|Watching|Online|Free|HD|1080p/gi, "")
+    // Remove domain variations (e.g., "example.com", "example", etc.)
+    .replace(new RegExp(domain.replace(/\./g, "\\."), "gi"), "")
+    .replace(new RegExp(domain.split(".")[0], "gi"), "")
+    // Remove common streaming platform keywords
+    .replace(/Watching|Online|Free|HD|1080p|720p|4K|Stream/gi, "")
+    // Remove common separators and platform indicators at the end
+    .replace(/\s*[-|–|—:]\s*(Watch|Stream|Full|Movie|TV\s*Show|Series).*$/i, "")
     .split(/[-|–|—]/)[0]
     .trim()
 
