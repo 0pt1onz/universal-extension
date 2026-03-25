@@ -16,6 +16,8 @@ interface Segment {
 interface IntroResponse {
   status: string
   tmdb_id?: number
+  title?: string
+  year?: string
   intro?: Segment[]
   recap?: Segment[]
   credits?: Segment[]
@@ -44,7 +46,6 @@ let lastPlayerInfo: {
   season?: number
   episode?: number
 } | null = null
-let initRetryCount = 0
 
 async function recordSkip(type: string, durationMs: number) {
   const key = "skipButtonStats"
@@ -179,36 +180,13 @@ async function init() {
     return
   }
 
-  const video = await new Promise<HTMLVideoElement | null>((res) => {
-    let attempts = 0
-    const check = setInterval(() => {
-      const v = getActiveVideo()
-      attempts++
-      if (v) {
-        clearInterval(check)
-        res(v)
-      } else if (attempts > 20) {
-        clearInterval(check)
-        res(null)
-      }
-    }, 500)
-  })
-
-  if (!video) {
-    if (initRetryCount < 3) {
-      initRetryCount++
-      setTimeout(init, 5000)
-    }
-    return
-  }
-
-  initRetryCount = 0
+  const video = getActiveVideo()
 
   const ctx = (await extractMediaContext(
     window.location.href,
     document.title,
     document.body.innerText,
-    video.currentTime
+    video?.currentTime ?? 0
   )) as MediaContext
 
   if (!ctx?.title && !ctx?.tmdb_id && !ctx?.imdb_id) return
@@ -236,7 +214,7 @@ async function init() {
     console.log("Parsed segments:", data)
     activeTimestamps = data
     lastPlayerInfo = {
-      title: ctx.title || "Detected",
+      title: res.title || ctx.title || "Detected",
       tmdb_id: res.tmdb_id ?? ctx.tmdb_id,
       type: ctx.type,
       season: ctx.season,
@@ -276,7 +254,7 @@ chrome.runtime.onMessage.addListener(
           .then((ctx) => {
             if (ctx?.title || ctx?.tmdb_id || ctx?.imdb_id) {
               sendResponse({
-                title: ctx.title || "Detected",
+                title: lastPlayerInfo?.title || ctx.title || "Detected",
                 tmdb_id: ctx.tmdb_id,
                 type: ctx.type,
                 season: ctx.season,

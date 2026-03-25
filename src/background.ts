@@ -21,6 +21,8 @@ interface IntroDBSegment {
 interface DiscoveryResult {
   status: string
   tmdb_id?: number
+  title?: string
+  year?: string
   intro?: Array<{ start_ms: number; end_ms: number }>
   recap?: Array<{ start_ms: number; end_ms: number }>
   credits?: Array<{ start_ms: number; end_ms: number }>
@@ -54,6 +56,7 @@ async function handleDiscovery(
 ): Promise<DiscoveryResult> {
   try {
     let tmdbId = data.tmdb_id
+    let tmdbResult: TMDBResult | null = null
 
     if (!tmdbId && data.imdb_id) {
       const res = await fetch(
@@ -65,6 +68,7 @@ async function handleDiscovery(
         const result = findData.movie_results?.[0] || findData.tv_results?.[0]
         if (result) {
           tmdbId = result.id
+          tmdbResult = result
         }
       }
     }
@@ -89,7 +93,8 @@ async function handleDiscovery(
               (rTitle.includes(targetTitle) || targetTitle.includes(rTitle))
             )
           })
-          tmdbId = match ? match.id : results[0].id
+          tmdbResult = match || results[0]
+          tmdbId = tmdbResult.id
         }
       }
     }
@@ -113,11 +118,22 @@ async function handleDiscovery(
           reset: reset ? parseInt(reset, 10) : undefined
         }
       }
-      return { status: "no_data", tmdb_id: tmdbId }
+      return {
+        status: "no_data",
+        tmdb_id: tmdbId,
+        title: tmdbResult?.title || tmdbResult?.name || data.title,
+        year:
+          tmdbResult?.release_date || tmdbResult?.first_air_date || data.year
+      }
     }
 
     const introData = await introRes.json()
-    const result: DiscoveryResult = { status: "success", tmdb_id: tmdbId }
+    const result: DiscoveryResult = {
+      status: "success",
+      tmdb_id: tmdbId,
+      title: tmdbResult?.title || tmdbResult?.name || data.title,
+      year: tmdbResult?.release_date || tmdbResult?.first_air_date || data.year
+    }
     const keys = ["intro", "recap", "credits", "preview"] as const
 
     const END_OF_VIDEO_MS = 86400000

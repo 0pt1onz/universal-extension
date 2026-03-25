@@ -41,8 +41,9 @@ export async function extractMediaContext(
   const entry = SITE_EXTRACTORS.find((e) =>
     typeof e.match === "function" ? e.match(url) : e.match.test(url)
   )
-  if (entry)
-    return await entry.extract(url, documentTitle, bodyText, currentTime)
+  if (entry) {
+    return entry.extract(url, documentTitle, bodyText, currentTime)
+  }
   return extractGeneric(url, documentTitle, bodyText, currentTime)
 }
 
