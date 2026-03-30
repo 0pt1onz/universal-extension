@@ -46,6 +46,21 @@ let lastPlayerInfo: {
   season?: number
   episode?: number
 } | null = null
+let retryCount = 0
+const MAX_RETRIES = 3
+let lastUrl = window.location.href
+let urlMonitoringStarted = false
+
+// Monitor for URL changes to reset retry counter
+function monitorUrlChanges() {
+  setInterval(() => {
+    if (window.location.href !== lastUrl) {
+      console.log("URL changed, resetting retry counter")
+      lastUrl = window.location.href
+      retryCount = 0
+    }
+  }, 1000)
+}
 
 async function recordSkip(type: string, durationMs: number) {
   const key = "skipButtonStats"
@@ -180,6 +195,12 @@ async function init() {
     return
   }
 
+  // Start URL change monitoring on first init
+  if (!urlMonitoringStarted) {
+    monitorUrlChanges()
+    urlMonitoringStarted = true
+  }
+
   const video = getActiveVideo()
 
   // Skip if the page title indicates an error or not found page
@@ -193,7 +214,15 @@ async function init() {
   const cleanTitle = document.title.trim().toLowerCase()
   if (invalidTitles.some((invalid) => cleanTitle.includes(invalid))) {
     console.log("Skipping invalid page title:", document.title)
-    setTimeout(init, 3000) // Retry in 3 seconds
+    if (retryCount < MAX_RETRIES) {
+      retryCount++
+      console.log(
+        `Retry attempt ${retryCount}/${MAX_RETRIES} for invalid title`
+      )
+      setTimeout(init, 3000) // Retry in 3 seconds
+    } else {
+      console.log("Max retries reached for invalid title, stopping attempts")
+    }
     return
   }
 
@@ -204,7 +233,21 @@ async function init() {
     video?.currentTime ?? 0
   )) as MediaContext
 
-  if (!ctx?.title && !ctx?.tmdb_id && !ctx?.imdb_id) return
+  if (!ctx?.title && !ctx?.tmdb_id && !ctx?.imdb_id) {
+    console.log("No valid media context found (no title, TMDB ID, or IMDb ID)")
+    if (retryCount < MAX_RETRIES) {
+      retryCount++
+      console.log(
+        `Retry attempt ${retryCount}/${MAX_RETRIES} for missing media context`
+      )
+      setTimeout(init, 5000)
+    } else {
+      console.log(
+        "Max retries reached for missing media context, stopping attempts"
+      )
+    }
+    return
+  }
 
   const res = (await chrome.runtime.sendMessage({
     action: "resolveAndFetch",
@@ -235,6 +278,8 @@ async function init() {
       season: ctx.season,
       episode: ctx.episode
     }
+    // Reset retry counter on successful data retrieval
+    retryCount = 0
     monitorPlayback()
   } else if (res?.status === "rate_limited") {
     chrome.storage.local.set({
@@ -245,7 +290,15 @@ async function init() {
       error: { type: "api_unreachable", time: Date.now() }
     })
   } else if (!activeTimestamps) {
-    setTimeout(init, 5000)
+    if (retryCount < MAX_RETRIES) {
+      retryCount++
+      console.log(
+        `No segments found, retry attempt ${retryCount}/${MAX_RETRIES}`
+      )
+      setTimeout(init, 5000)
+    } else {
+      console.log("Max retries reached for finding segments, stopping attempts")
+    }
   }
 }
 
