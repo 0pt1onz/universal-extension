@@ -55,6 +55,7 @@ let initScheduledId: ReturnType<typeof setTimeout> | null = null
 let playerPollId: ReturnType<typeof setInterval> | null = null
 let domObserver: MutationObserver | null = null
 let lastLookupKey: string | null = null
+let activeMediaKey: string | null = null
 let suppressUntilMs = 0
 
 // Monitor for URL changes to reset retry counter
@@ -67,6 +68,7 @@ function monitorUrlChanges() {
       suppressUntilMs = 0
       resetPageState()
       lastLookupKey = null
+      activeMediaKey = null
       scheduleInit(1200)
     }
   }, 1000)
@@ -92,6 +94,7 @@ function clearSkipButton() {
 function clearMediaState() {
   activeTimestamps = null
   lastPlayerInfo = null
+  activeMediaKey = null
 }
 
 function resetPageState() {
@@ -112,19 +115,22 @@ function isInvalidDocumentTitle(title: string): boolean {
   return invalidTitles.some((invalid) => cleanTitle.includes(invalid))
 }
 
-function hasExternalIds(ctx: MediaContext): boolean {
-  return !!(ctx?.tmdb_id || ctx?.imdb_id)
-}
+function makeMediaKey(ctx: MediaContext): string | null {
+  const idPart = ctx.tmdb_id
+    ? `tmdb:${ctx.tmdb_id}`
+    : ctx.imdb_id
+      ? `imdb:${ctx.imdb_id}`
+      : null
+  if (!idPart) return null
 
-function makeLookupKey(ctx: MediaContext): string {
-  return [
-    ctx.type,
-    ctx.tmdb_id ?? "",
-    ctx.imdb_id ?? "",
-    ctx.season ?? "",
-    ctx.episode ?? "",
-    ctx.title ?? ""
-  ].join("|")
+  if (ctx.type === "tv") {
+    const season = ctx.season ?? ""
+    const episode = ctx.episode ?? ""
+    const episodeId = ctx.episode_id ?? ""
+    return `${idPart}|tv|s:${season}|e:${episode}|eid:${episodeId}`
+  }
+
+  return `${idPart}|movie`
 }
 
 function startPlayerMonitors() {
@@ -133,7 +139,7 @@ function startPlayerMonitors() {
       if (Date.now() < suppressUntilMs) return
       const hasVideo = !!document.querySelector("video")
       if (!hasVideo) return
-      if (!activeTimestamps || !lastPlayerInfo) {
+      if (!activeMediaKey && (!activeTimestamps || !lastPlayerInfo)) {
         scheduleInit(0)
       }
     }, 10000)
@@ -144,7 +150,7 @@ function startPlayerMonitors() {
       if (Date.now() < suppressUntilMs) return
       const hasVideo = !!document.querySelector("video")
       if (!hasVideo) return
-      if (!activeTimestamps || !lastPlayerInfo) {
+      if (!activeMediaKey && (!activeTimestamps || !lastPlayerInfo)) {
         scheduleInit(400)
       }
     })
@@ -332,24 +338,27 @@ async function init() {
       video?.currentTime ?? 0
     )) as MediaContext
 
-    const lookupKey = makeLookupKey(ctx)
-
-    if (lookupKey === lastLookupKey) {
-      if (activeTimestamps && lastPlayerInfo) {
-        monitorPlayback()
-      }
-      return
-    }
-
-    if (activeTimestamps || lastPlayerInfo || skipBtn) {
-      resetPageState()
-    }
-
-    if (!hasExternalIds(ctx)) {
+    const mediaKey = makeMediaKey(ctx)
+    if (!mediaKey) {
+      const attemptKey = `missing_ids|${ctx.type}|${ctx.title || ""}`
+      if (attemptKey === lastLookupKey) return
       console.log("Skipping TIDB lookup: media is missing TMDB ID and IMDb ID")
-      lastLookupKey = lookupKey
+      lastLookupKey = attemptKey
+      resetPageState()
       return
     }
+
+    if (activeMediaKey === mediaKey && activeTimestamps && lastPlayerInfo) {
+      monitorPlayback()
+      return
+    }
+
+    if (mediaKey === lastLookupKey) {
+      return
+    }
+
+    lastLookupKey = mediaKey
+    resetPageState()
 
     const res = (await chrome.runtime.sendMessage({
       action: "resolveAndFetch",
@@ -380,7 +389,7 @@ async function init() {
         season: ctx.season,
         episode: ctx.episode
       }
-      lastLookupKey = lookupKey
+      activeMediaKey = mediaKey
       // Reset retry counter on successful data retrieval
       retryCount = 0
       monitorPlayback()
