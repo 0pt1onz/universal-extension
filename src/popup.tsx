@@ -1,6 +1,6 @@
 import "~style.css"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import smallLogo from "url:../assets/small-logo.svg"
 
 import { api, API_URL } from "./popup/api"
@@ -11,6 +11,17 @@ import { SetupPage } from "./popup/SetupPage"
 import { StatsPage } from "./popup/StatsPage"
 import { formatSeconds, formatTime, parseTimeToSeconds } from "./popup/utils"
 
+type PlayerInfoResponse = null | {
+  available?: boolean
+  reason?: string
+  title?: string
+  tmdb_id?: number
+  type?: "tv" | "movie"
+  season?: number
+  episode?: number
+  currentTime?: number
+}
+
 function IndexPopup() {
   const [view, setView] = useState<"setup" | "main" | "stats">("setup")
   const [mediaTitle, setMediaTitle] = useState("Detecting...")
@@ -20,11 +31,13 @@ function IndexPopup() {
   const [season, setSeason] = useState("")
   const [episode, setEpisode] = useState("")
   const [startSec, setStartSec] = useState("")
+  const [endSec, setEndSec] = useState("")
   const [segment, setSegment] = useState<SegmentType>("intro")
   const [status, setStatus] = useState("")
   const [statusColor, setStatusColor] = useState("")
   const [setupPageKey, setSetupPageKey] = useState("")
   const [errorMessage, setErrorMessage] = useState(null)
+  const startSecRef = useRef(startSec)
 
   const loadPlayerInfo = useCallback(async () => {
     const [tab] = await api.tabs.query({ active: true, currentWindow: true })
@@ -38,37 +51,45 @@ function IndexPopup() {
       setMediaTitle("Cannot run on this page")
       return
     }
-    api.tabs.sendMessage(tab.id!, { action: "getPlayerInfo" }, (response) => {
-      if (api.runtime.lastError) {
-        setMediaTitle("Refresh page to sync")
-        return
+    api.tabs.sendMessage(
+      tab.id!,
+      { action: "getPlayerInfo" },
+      (response: PlayerInfoResponse) => {
+        if (api.runtime.lastError) {
+          setMediaTitle("Refresh page to sync")
+          return
+        }
+        if (!response || response.available === false) {
+          setMediaTitle("Not available on this page")
+          setMediaMeta("No HTML video player detected")
+          return
+        }
+        setTmdbId(String(response.tmdb_id || ""))
+        setMediaType(response.type || "movie")
+        const currentTimeSec =
+          typeof response.currentTime === "number" ? response.currentTime : null
+        if (typeof currentTimeSec === "number" && startSecRef.current === "") {
+          setStartSec(formatTime(currentTimeSec))
+        }
+        setMediaTitle(response.title || "Detected")
+        if (response.type === "tv") {
+          setSeason(String(response.season ?? ""))
+          setEpisode(String(response.episode ?? ""))
+          setMediaMeta(
+            response.season && response.episode
+              ? `Season ${response.season} - Episode ${response.episode}`
+              : "TV Series"
+          )
+        } else {
+          setMediaMeta("Feature Film")
+        }
       }
-      if (!response || response.available === false) {
-        setMediaTitle("Not available on this page")
-        setMediaMeta("No HTML video player detected")
-        return
-      }
-      setTmdbId(String(response.tmdb_id || ""))
-      setMediaType(response.type || "movie")
-      setStartSec(
-        typeof response.currentTime === "number"
-          ? formatTime(response.currentTime)
-          : ""
-      )
-      setMediaTitle(response.title || "Detected")
-      if (response.type === "tv") {
-        setSeason(String(response.season ?? ""))
-        setEpisode(String(response.episode ?? ""))
-        setMediaMeta(
-          response.season && response.episode
-            ? `Season ${response.season} - Episode ${response.episode}`
-            : "TV Series"
-        )
-      } else {
-        setMediaMeta("Feature Film")
-      }
-    })
+    )
   }, [])
+
+  useEffect(() => {
+    startSecRef.current = startSec
+  }, [startSec])
 
   useEffect(() => {
     api.storage.local
@@ -126,20 +147,18 @@ function IndexPopup() {
 
   async function handleSubmit() {
     const { introdb_api_key } = await api.storage.local.get(["introdb_api_key"])
-    const endSecEl = document.getElementById("end_sec") as HTMLInputElement
-    const endSecRaw = endSecEl?.value?.trim() ?? ""
-    const endSec =
-      endSecRaw === ""
+    const endSecValue =
+      endSec.trim() === ""
         ? segment === "credits" || segment === "preview"
           ? null
           : 0
-        : parseTimeToSeconds(endSecRaw)
+        : parseTimeToSeconds(endSec)
     const payload: Record<string, unknown> = {
       tmdb_id: Number(tmdbId),
       type: mediaType,
       segment,
       start_sec: parseTimeToSeconds(startSec),
-      end_sec: endSec
+      end_sec: endSecValue
     }
     if (mediaType === "tv") {
       payload.season = Number(season)
@@ -193,6 +212,32 @@ function IndexPopup() {
         loadPlayerInfo()
       }
     })
+  }
+
+  const fetchCurrentPlayerTimeSec = async () => {
+    const [tab] = await api.tabs.query({ active: true, currentWindow: true })
+    if (!tab?.id) return null
+
+    const res = await new Promise<PlayerInfoResponse>((resolve) => {
+      api.tabs.sendMessage(tab.id!, { action: "getPlayerInfo" }, resolve)
+    })
+
+    if (!res || res.available === false) return null
+    return typeof res.currentTime === "number" ? res.currentTime : null
+  }
+
+  const handleUsePlayerTimeForStart = async () => {
+    const current = await fetchCurrentPlayerTimeSec()
+    if (typeof current === "number") {
+      setStartSec(formatTime(current))
+    }
+  }
+
+  const handleUsePlayerTimeForEnd = async () => {
+    const current = await fetchCurrentPlayerTimeSec()
+    if (typeof current === "number") {
+      setEndSec(formatTime(current))
+    }
   }
 
   return (
@@ -249,6 +294,10 @@ function IndexPopup() {
                 setSegment={setSegment}
                 startSec={startSec}
                 setStartSec={setStartSec}
+                endSec={endSec}
+                setEndSec={setEndSec}
+                onUsePlayerTimeForStart={handleUsePlayerTimeForStart}
+                onUsePlayerTimeForEnd={handleUsePlayerTimeForEnd}
                 status={status}
                 statusColor={statusColor}
                 onSubmit={handleSubmit}

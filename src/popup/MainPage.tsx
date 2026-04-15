@@ -7,6 +7,10 @@ export interface MainPageProps {
   setSegment: (s: SegmentType) => void
   startSec: string
   setStartSec: (v: string) => void
+  endSec: string
+  setEndSec: (v: string) => void
+  onUsePlayerTimeForStart: () => void
+  onUsePlayerTimeForEnd: () => void
   status: string
   statusColor: string
   onSubmit: () => void
@@ -20,6 +24,10 @@ export function MainPage({
   setSegment,
   startSec,
   setStartSec,
+  endSec,
+  setEndSec,
+  onUsePlayerTimeForStart,
+  onUsePlayerTimeForEnd,
   status,
   statusColor,
   onSubmit,
@@ -59,18 +67,36 @@ export function MainPage({
         Time (MM:SS)
       </label>
       <div className="flex gap-2.5 mb-3 min-w-0">
-        <input
-          id="start_sec"
-          placeholder="00:30"
-          value={startSec}
-          onChange={(e) => setStartSec(e.target.value)}
-          className="flex-1 min-w-0 p-[11px] bg-[#151515] border border-white/[.08] rounded-4xl box-border text-white text-[13px]"
-        />
-        <input
-          id="end_sec"
-          placeholder="01:30"
-          className="flex-1 min-w-0 p-[11px] bg-[#151515] border border-white/[.08] rounded-4xl box-border text-white text-[13px]"
-        />
+        <div className="flex-1 min-w-0">
+          <input
+            id="start_sec"
+            placeholder="00:30"
+            value={startSec}
+            onChange={(e) => setStartSec(e.target.value)}
+            className="w-full min-w-0 p-[11px] bg-[#151515] border border-white/[.08] rounded-4xl box-border text-white text-[13px]"
+          />
+          <button
+            type="button"
+            onClick={onUsePlayerTimeForStart}
+            className="mt-1 pl-1 text-[9px] text-gray-500 hover:text-green-400">
+            Insert current time
+          </button>
+        </div>
+        <div className="flex-1 min-w-0">
+          <input
+            id="end_sec"
+            placeholder="01:30"
+            value={endSec}
+            onChange={(e) => setEndSec(e.target.value)}
+            className="w-full min-w-0 p-[11px] bg-[#151515] border border-white/[.08] rounded-4xl box-border text-white text-[13px]"
+          />
+          <button
+            type="button"
+            onClick={onUsePlayerTimeForEnd}
+            className="mt-1 pl-1 text-[9px] text-gray-500 hover:text-green-400">
+            Insert current time
+          </button>
+        </div>
       </div>
 
       <button
