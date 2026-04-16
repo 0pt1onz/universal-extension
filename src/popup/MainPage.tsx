@@ -103,7 +103,7 @@ export function MainPage({
         type="button"
         onClick={onSubmit}
         className="border-gradient-pill p-3.5 w-full cursor-pointer font-bold uppercase text-[11px] tracking-[1px] mt-[5px] text-green-400 hover:text-green-400 border-green-400/30">
-        Accept
+        Submit
       </button>
       <div
         id="status"
