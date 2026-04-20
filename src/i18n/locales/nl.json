@@ -1,0 +1,79 @@
+{
+  "popup": {
+    "title": "Indienen",
+    "segment": "Segment",
+    "time": "Tijd (MM:SS)",
+    "startTime": "Starttijd",
+    "endTime": "Eindtijd",
+    "insertCurrentTime": "Huidige tijd invoegen",
+    "submit": "Indienen",
+    "disconnectToken": "Token ontkoppelen",
+    "apiKey": "API-sleutel",
+    "enterApiKey": "Voer je API-sleutel in",
+    "authorize": "Autoriseren",
+    "yourStatistics": "Jouw statistieken",
+    "personalTimeSaved": "Persoonlijk bespaarde tijd",
+    "segmentsSkipped": "Overgeslagen segmenten",
+    "yourSubmissions": "Jouw inzendingen",
+    "total": "Totaal",
+    "accepted": "Goedgekeurd",
+    "pending": "In behandeling",
+    "acceptanceRate": "Acceptatiepercentage",
+    "currentStreak": "Huidige reeks",
+    "bestStreak": "Beste reeks",
+    "communitySubmissions": "Inzendingen van de community",
+    "loading": "Laden...",
+    "enabled": "Ingeschakeld",
+    "disabled": "Uitgeschakeld",
+    "on": "op",
+    "github": "GitHub"
+  },
+  "content": {
+    "skipButton": {
+      "intro": "INTRO OVERSLAAN",
+      "recap": "SAMENVATTING OVERSLAAN",
+      "credits": "AFTITELING OVERSLAAN",
+      "preview": "VOORVERTONING OVERSLAAN"
+    }
+  },
+  "errors": {
+    "apiKeyNotAccepted": "API-sleutel niet geaccepteerd. Controleer de sleutel of maak een nieuwe aan op theintrodb.org",
+    "couldNotLoadAccountStats": "Kan accountstatistieken niet laden. Probeer het later opnieuw.",
+    "rateLimited": "Gebruikslimiet bereikt. Probeer het opnieuw over {{timeString}}.",
+    "apiUnreachable": "De API is niet bereikbaar. Probeer het later opnieuw.",
+    "cannotRunOnThisPage": "Kan niet op deze pagina worden uitgevoerd",
+    "refreshPageToSync": "Ververs de pagina om te synchroniseren",
+    "notAvailableOnThisPage": "Niet beschikbaar op deze pagina",
+    "noHtmlVideoPlayerDetected": "Geen HTML-videospeler gedetecteerd"
+  },
+  "segments": {
+    "intro": "Intro",
+    "recap": "Samenvatting",
+    "credits": "Aftiteling",
+    "preview": "Voorvertoning"
+  },
+  "time": {
+    "hours": "u",
+    "minutes": "m",
+    "seconds": "s"
+  },
+  "status": {
+    "submitting": "Bezig met indienen...",
+    "submittedSuccessfully": "Succesvol ingediend",
+    "connectionFailed": "Verbinding mislukt"
+  },
+  "media": {
+    "season": "Seizoen",
+    "episode": "Aflevering",
+    "tvSeries": "Tv-serie",
+    "featureFilm": "Speelfilm"
+  },
+  "setup": {
+    "description1": "Je ontvangt skip-segmenten van TheIntroDB!",
+    "description2": "Optioneel kun je je API-sleutel invoeren om nieuwe segmenten in te dienen en je nog openstaande segmenten te gebruiken."
+  },
+  "navigation": {
+    "back": "Terug",
+    "stats": "Statistieken"
+  }
+}
