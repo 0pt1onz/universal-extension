@@ -1,4 +1,4 @@
-export const API_URL =
-  process.env.PLASMO_PUBLIC_INTRODB_API || "https://api.theintrodb.org/v2"
+import { INTRODB_API_URL } from "~/shared/config"
 
 export const api = typeof browser !== "undefined" ? browser : chrome
+export const API_URL = INTRODB_API_URL

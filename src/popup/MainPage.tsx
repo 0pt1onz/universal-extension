@@ -1,11 +1,15 @@
 import { useTranslation } from "react-i18next"
 
-export type SegmentType = "intro" | "recap" | "credits" | "preview"
+import { SEGMENT_TYPES, type SegmentType } from "~/shared/media"
+
+export type { SegmentType }
 
 export interface MainPageProps {
   notice: string
   mediaTitle: string
   mediaMeta: string
+  showDebugLogs: boolean
+  debugLogs: string[]
   canSubmit: boolean
   segment: SegmentType
   setSegment: (s: SegmentType) => void
@@ -25,6 +29,8 @@ export function MainPage({
   notice,
   mediaTitle,
   mediaMeta,
+  showDebugLogs,
+  debugLogs,
   canSubmit,
   segment,
   setSegment,
@@ -55,12 +61,24 @@ export function MainPage({
         {mediaTitle}
       </div>
       <div className="text-[10px] text-gray-500 mb-3 pl-3.5">{mediaMeta}</div>
+      {showDebugLogs && debugLogs.length > 0 && (
+        <div className="mb-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+          <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.5px] text-gray-400">
+            Debug Log
+          </div>
+          <div className="space-y-1 font-mono text-[10px] text-gray-300">
+            {debugLogs.map((log, index) => (
+              <div key={`${index}-${log}`}>{log}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <label className="block text-[9px] font-bold text-green-400 mb-1.5 uppercase tracking-[0.5px]">
         {t("popup.segment")}
       </label>
       <div className="grid grid-cols-2 gap-2 mb-3">
-        {(["intro", "recap", "credits", "preview"] as const).map((s) => (
+        {SEGMENT_TYPES.map((s) => (
           <button
             key={s}
             type="button"

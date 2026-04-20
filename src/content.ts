@@ -1,17 +1,23 @@
 import type { PlasmoCSConfig } from "plasmo"
 
 import i18next from "~/i18n/config"
+import {
+  END_OF_VIDEO_SENTINEL_MS,
+  SEGMENT_TYPES,
+  TRACKED_SEGMENT_TYPES,
+  type MediaType,
+  type PlayerInfoMessage,
+  type Segment,
+  type SegmentType,
+  type TrackableSegmentType
+} from "~/shared/media"
 import { extractMediaContext } from "~/websites"
+import type { MediaContext } from "~/websites"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
   all_frames: true,
   run_at: "document_idle"
-}
-
-interface Segment {
-  start_ms: number
-  end_ms: number
 }
 
 interface IntroResponse {
@@ -26,96 +32,154 @@ interface IntroResponse {
   reset?: number
 }
 
-interface MediaContext {
-  title: string
-  type: "tv" | "movie"
-  season?: number
-  episode?: number
-  episode_id?: number
-  tmdb_id?: number
-  imdb_id?: string
-  year?: string
-}
-
-interface PlayerInfoMessage {
-  available: boolean
-  reason?: string
-  title?: string
-  tmdb_id?: number
-  type?: "tv" | "movie"
-  season?: number
-  episode?: number
-  currentTime?: number
-  playerAvailable?: boolean
-}
-
 interface DiscoveryResponse {
   status?: string
   tmdb_id?: number
   title?: string
 }
 
-let activeTimestamps: Record<string, Segment[]> | null = null
-let skipBtn: HTMLButtonElement | null = null
-let playbackIntervalId: ReturnType<typeof setInterval> | null = null
-let lastPlayerInfo: {
+type ActiveSegments = Partial<Record<SegmentType, Segment[]>>
+
+interface LastPlayerInfo {
   title: string
   tmdb_id?: number
-  type: "tv" | "movie"
+  type: MediaType
   season?: number
   episode?: number
-} | null = null
-let retryCount = 0
+}
+
+interface ContentRuntimeState {
+  activeSegments: ActiveSegments | null
+  skipButton: HTMLButtonElement | null
+  playbackIntervalId: ReturnType<typeof setInterval> | null
+  lastPlayerInfo: LastPlayerInfo | null
+  retryCount: number
+  lastUrl: string
+  urlMonitoringStarted: boolean
+  initRunning: boolean
+  initScheduledId: ReturnType<typeof setTimeout> | null
+  playerPollId: ReturnType<typeof setInterval> | null
+  domObserver: MutationObserver | null
+  lastLookupKey: string | null
+  activeMediaKey: string | null
+  inFlightMediaKey: string | null
+  suppressUntilMs: number
+}
+
 const MAX_RETRIES = 3
-let lastUrl = window.location.href
-let urlMonitoringStarted = false
-let initRunning = false
-let initScheduledId: ReturnType<typeof setTimeout> | null = null
-let playerPollId: ReturnType<typeof setInterval> | null = null
-let domObserver: MutationObserver | null = null
-let lastLookupKey: string | null = null
-let activeMediaKey: string | null = null
-let inFlightMediaKey: string | null = null
-let suppressUntilMs = 0
+const URL_CHANGE_POLL_MS = 1000
+const PLAYER_POLL_MS = 10000
+const PLAYBACK_POLL_MS = 400
+const INVALID_TITLE_RETRY_DELAY_MS = 3000
+const SEGMENT_RETRY_DELAY_MS = 5000
+const LONG_SUPPRESSION_MS = 60000
+const SHORT_SUPPRESSION_MS = 5000
+const DOM_INIT_DELAY_MS = 400
+const URL_CHANGE_INIT_DELAY_MS = 1200
+const DEFAULT_INIT_DELAY_MS = 800
+const STORAGE_KEYS = {
+  disabledSites: "disabled_sites",
+  error: "error",
+  skipStats: "skipButtonStats"
+} as const
+
+const state: ContentRuntimeState = {
+  activeSegments: null,
+  skipButton: null,
+  playbackIntervalId: null,
+  lastPlayerInfo: null,
+  retryCount: 0,
+  lastUrl: window.location.href,
+  urlMonitoringStarted: false,
+  initRunning: false,
+  initScheduledId: null,
+  playerPollId: null,
+  domObserver: null,
+  lastLookupKey: null,
+  activeMediaKey: null,
+  inFlightMediaKey: null,
+  suppressUntilMs: 0
+}
+
+function isSuppressed() {
+  return Date.now() < state.suppressUntilMs
+}
+
+function suppressLookups(durationMs: number) {
+  state.suppressUntilMs = Date.now() + durationMs
+}
+
+function hasVideoElement() {
+  return Boolean(document.querySelector("video"))
+}
+
+function shouldInitializeForCurrentPage() {
+  return (
+    !state.activeMediaKey && (!state.activeSegments || !state.lastPlayerInfo)
+  )
+}
+
+function isTrackableSegmentType(value: string): value is TrackableSegmentType {
+  return TRACKED_SEGMENT_TYPES.includes(value as TrackableSegmentType)
+}
+
+function getDefaultSkipStats() {
+  return {
+    segments_skipped: { intro: 0, recap: 0, credits: 0 },
+    time_saved_by_type_ms: { intro: 0, recap: 0, credits: 0 }
+  }
+}
+
+function buildActiveSegments(response: IntroResponse): ActiveSegments {
+  const segments: ActiveSegments = {}
+
+  SEGMENT_TYPES.forEach((type) => {
+    if (Array.isArray(response[type])) {
+      segments[type] = response[type]
+    }
+  })
+
+  return segments
+}
 
 // Monitor for URL changes to reset retry counter
 function monitorUrlChanges() {
   setInterval(() => {
-    if (window.location.href !== lastUrl) {
+    if (window.location.href !== state.lastUrl) {
       console.log("URL changed, resetting retry counter")
-      lastUrl = window.location.href
-      retryCount = 0
-      suppressUntilMs = 0
+      state.lastUrl = window.location.href
+      state.retryCount = 0
+      state.suppressUntilMs = 0
       resetPageState()
-      lastLookupKey = null
-      activeMediaKey = null
-      scheduleInit(1200)
+      state.lastLookupKey = null
+      state.activeMediaKey = null
+      scheduleInit(URL_CHANGE_INIT_DELAY_MS)
     }
-  }, 1000)
+  }, URL_CHANGE_POLL_MS)
 }
 
-function scheduleInit(delayMs = 800) {
-  if (initScheduledId) clearTimeout(initScheduledId)
-  initScheduledId = setTimeout(() => {
-    initScheduledId = null
-    if (!initRunning) {
+function scheduleInit(delayMs = DEFAULT_INIT_DELAY_MS) {
+  if (state.initScheduledId) clearTimeout(state.initScheduledId)
+  state.initScheduledId = setTimeout(() => {
+    state.initScheduledId = null
+    if (!state.initRunning) {
       init()
     }
   }, delayMs)
 }
 
 function clearSkipButton() {
-  if (skipBtn) {
-    skipBtn.remove()
-    skipBtn = null
+  if (state.skipButton) {
+    state.skipButton.remove()
+    state.skipButton = null
   }
 }
 
 function clearMediaState() {
-  activeTimestamps = null
-  lastPlayerInfo = null
-  activeMediaKey = null
-  inFlightMediaKey = null
+  state.activeSegments = null
+  state.lastPlayerInfo = null
+  state.activeMediaKey = null
+  state.inFlightMediaKey = null
 }
 
 function resetPageState() {
@@ -155,28 +219,24 @@ function makeMediaKey(ctx: MediaContext): string | null {
 }
 
 function startPlayerMonitors() {
-  if (!playerPollId) {
-    playerPollId = setInterval(() => {
-      if (Date.now() < suppressUntilMs) return
-      const hasVideo = !!document.querySelector("video")
-      if (!hasVideo) return
-      if (!activeMediaKey && (!activeTimestamps || !lastPlayerInfo)) {
+  if (!state.playerPollId) {
+    state.playerPollId = setInterval(() => {
+      if (isSuppressed() || !hasVideoElement()) return
+      if (shouldInitializeForCurrentPage()) {
         scheduleInit(0)
       }
-    }, 10000)
+    }, PLAYER_POLL_MS)
   }
 
-  if (!domObserver) {
-    domObserver = new MutationObserver(() => {
-      if (Date.now() < suppressUntilMs) return
-      const hasVideo = !!document.querySelector("video")
-      if (!hasVideo) return
-      if (!activeMediaKey && (!activeTimestamps || !lastPlayerInfo)) {
-        scheduleInit(400)
+  if (!state.domObserver) {
+    state.domObserver = new MutationObserver(() => {
+      if (isSuppressed() || !hasVideoElement()) return
+      if (shouldInitializeForCurrentPage()) {
+        scheduleInit(DOM_INIT_DELAY_MS)
       }
     })
 
-    domObserver.observe(document.documentElement, {
+    state.domObserver.observe(document.documentElement, {
       subtree: true,
       childList: true
     })
@@ -184,21 +244,17 @@ function startPlayerMonitors() {
 }
 
 async function recordSkip(type: string, durationMs: number) {
-  const key = "skipButtonStats"
-  const storage = await chrome.storage.local.get([key])
+  if (!isTrackableSegmentType(type.toLowerCase())) return
 
-  const stats = storage[key] || {
-    segments_skipped: { intro: 0, recap: 0, credits: 0 },
-    time_saved_by_type_ms: { intro: 0, recap: 0, credits: 0 }
-  }
+  const storage = await chrome.storage.local.get([STORAGE_KEYS.skipStats])
 
-  const typeKey = type.toLowerCase() as "intro" | "recap" | "credits"
+  const stats = storage[STORAGE_KEYS.skipStats] || getDefaultSkipStats()
+  const typeKey = type.toLowerCase()
 
-  if (stats.segments_skipped[typeKey] !== undefined) {
-    stats.segments_skipped[typeKey] += 1
-    stats.time_saved_by_type_ms[typeKey] += Math.max(0, durationMs)
-    await chrome.storage.local.set({ [key]: stats })
-  }
+  stats.segments_skipped[typeKey] += 1
+  stats.time_saved_by_type_ms[typeKey] += Math.max(0, durationMs)
+
+  await chrome.storage.local.set({ [STORAGE_KEYS.skipStats]: stats })
 }
 
 function getActiveVideo(): HTMLVideoElement | null {
@@ -207,12 +263,12 @@ function getActiveVideo(): HTMLVideoElement | null {
 }
 
 function createBtn(type: string, endMs: number) {
-  if (skipBtn) return
+  if (state.skipButton) return
 
-  skipBtn = document.createElement("button")
-  skipBtn.innerHTML = `${i18next.t(`content.skipButton.${type}`)} <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-skip-forward"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`
+  state.skipButton = document.createElement("button")
+  state.skipButton.innerHTML = `${i18next.t(`content.skipButton.${type}`)} <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-skip-forward"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`
 
-  Object.assign(skipBtn.style, {
+  Object.assign(state.skipButton.style, {
     position: "fixed",
     right: "40px",
     bottom: "130px",
@@ -237,17 +293,19 @@ function createBtn(type: string, endMs: number) {
   })
 
   // Add hover effect
-  skipBtn.addEventListener("mouseenter", () => {
-    skipBtn.style.backgroundColor = "rgba(255, 255, 255, 0.1)"
-    skipBtn.style.color = "#ffffff"
+  state.skipButton.addEventListener("mouseenter", () => {
+    if (!state.skipButton) return
+    state.skipButton.style.backgroundColor = "rgba(255, 255, 255, 0.1)"
+    state.skipButton.style.color = "#ffffff"
   })
 
-  skipBtn.addEventListener("mouseleave", () => {
-    skipBtn.style.backgroundColor = "rgba(255, 255, 255, 0.05)"
-    skipBtn.style.color = "#34D399"
+  state.skipButton.addEventListener("mouseleave", () => {
+    if (!state.skipButton) return
+    state.skipButton.style.backgroundColor = "rgba(255, 255, 255, 0.05)"
+    state.skipButton.style.color = "#34D399"
   })
 
-  skipBtn.onclick = async (e) => {
+  state.skipButton.onclick = async (e) => {
     e.preventDefault()
     e.stopImmediatePropagation()
 
@@ -264,21 +322,19 @@ function createBtn(type: string, endMs: number) {
       )?.set?.call(video, endMs / 1000)
     }
 
-    skipBtn?.remove()
-    skipBtn = null
+    state.skipButton?.remove()
+    state.skipButton = null
   }
 
-  document.body.appendChild(skipBtn)
+  document.body.appendChild(state.skipButton)
 }
 
-const END_OF_VIDEO_SENTINEL_MS = 86400000
-
 function monitorPlayback() {
-  if (playbackIntervalId) clearInterval(playbackIntervalId)
+  if (state.playbackIntervalId) clearInterval(state.playbackIntervalId)
 
-  playbackIntervalId = setInterval(() => {
+  state.playbackIntervalId = setInterval(() => {
     const video = getActiveVideo()
-    if (!video || !activeTimestamps) {
+    if (!video || !state.activeSegments) {
       return
     }
 
@@ -286,7 +342,7 @@ function monitorPlayback() {
     const durationMs = video.duration * 1000
     let found: { type: string; end: number } | null = null
 
-    for (const [type, segments] of Object.entries(activeTimestamps)) {
+    for (const [type, segments] of Object.entries(state.activeSegments)) {
       for (const s of segments) {
         const endMs =
           s.end_ms >= END_OF_VIDEO_SENTINEL_MS || !s.end_ms
@@ -301,31 +357,30 @@ function monitorPlayback() {
     }
 
     if (found) {
-      if (!skipBtn) createBtn(found.type, found.end)
-    } else if (skipBtn) {
-      skipBtn.remove()
-      skipBtn = null
+      if (!state.skipButton) createBtn(found.type, found.end)
+    } else if (state.skipButton) {
+      state.skipButton.remove()
+      state.skipButton = null
     }
-  }, 400)
+  }, PLAYBACK_POLL_MS)
 }
 
 async function init() {
-  if (initRunning) return
-  if (Date.now() < suppressUntilMs) return
-  initRunning = true
+  if (state.initRunning || isSuppressed()) return
+  state.initRunning = true
   try {
     const { disabled_sites } = await chrome.storage.local.get([
-      "disabled_sites"
+      STORAGE_KEYS.disabledSites
     ])
-    const host = window.location.hostname.replace(/^www./, "")
+    const host = window.location.hostname.replace(/^www\./, "")
     if (Array.isArray(disabled_sites) && disabled_sites.includes(host)) {
       return
     }
 
     // Start URL change monitoring on first init
-    if (!urlMonitoringStarted) {
+    if (!state.urlMonitoringStarted) {
       monitorUrlChanges()
-      urlMonitoringStarted = true
+      state.urlMonitoringStarted = true
     }
 
     startPlayerMonitors()
@@ -339,15 +394,15 @@ async function init() {
 
     if (isInvalidDocumentTitle(document.title)) {
       console.log("Skipping invalid page title:", document.title)
-      if (retryCount < MAX_RETRIES) {
-        retryCount++
+      if (state.retryCount < MAX_RETRIES) {
+        state.retryCount++
         console.log(
-          `Retry attempt ${retryCount}/${MAX_RETRIES} for invalid title`
+          `Retry attempt ${state.retryCount}/${MAX_RETRIES} for invalid title`
         )
-        setTimeout(init, 3000) // Retry in 3 seconds
+        setTimeout(init, INVALID_TITLE_RETRY_DELAY_MS)
       } else {
         console.log("Max retries reached for invalid title, stopping attempts")
-        suppressUntilMs = Date.now() + 60000
+        suppressLookups(LONG_SUPPRESSION_MS)
       }
       return
     }
@@ -362,24 +417,28 @@ async function init() {
     const mediaKey = makeMediaKey(ctx)
     if (!mediaKey) {
       const attemptKey = `missing_ids|${ctx.type}|${ctx.title || ""}`
-      if (attemptKey === lastLookupKey) return
+      if (attemptKey === state.lastLookupKey) return
       console.log("Skipping TIDB lookup: media is missing TMDB ID and IMDb ID")
-      lastLookupKey = attemptKey
+      state.lastLookupKey = attemptKey
       resetPageState()
       return
     }
 
-    if (activeMediaKey === mediaKey && activeTimestamps && lastPlayerInfo) {
+    if (
+      state.activeMediaKey === mediaKey &&
+      state.activeSegments &&
+      state.lastPlayerInfo
+    ) {
       monitorPlayback()
       return
     }
 
-    if (inFlightMediaKey === mediaKey) {
+    if (state.inFlightMediaKey === mediaKey) {
       return
     }
 
     resetPageState()
-    inFlightMediaKey = mediaKey
+    state.inFlightMediaKey = mediaKey
 
     const res = (await chrome.runtime.sendMessage({
       action: "resolveAndFetch",
@@ -388,64 +447,61 @@ async function init() {
         isTV: ctx.type === "tv"
       }
     })) as IntroResponse
-    inFlightMediaKey = null
+    state.inFlightMediaKey = null
 
     console.log("TIDB API Response:", res)
 
     if (res?.status === "success") {
-      const data: Record<string, Segment[]> = {}
-      const keys = ["intro", "recap", "credits", "preview"] as const
-
-      keys.forEach((k) => {
-        if (Array.isArray(res[k])) {
-          data[k] = res[k]!
-        }
-      })
+      const data = buildActiveSegments(res)
 
       console.log("Parsed segments:", data)
-      activeTimestamps = data
-      lastPlayerInfo = {
+      state.activeSegments = data
+      state.lastPlayerInfo = {
         title: res.title || ctx.title || "Detected",
         tmdb_id: res.tmdb_id ?? ctx.tmdb_id,
         type: ctx.type,
         season: ctx.season,
         episode: ctx.episode
       }
-      activeMediaKey = mediaKey
+      state.activeMediaKey = mediaKey
       // Reset retry counter on successful data retrieval
-      retryCount = 0
-      suppressUntilMs = 0
+      state.retryCount = 0
+      state.suppressUntilMs = 0
       monitorPlayback()
     } else if (res?.status === "rate_limited") {
-      suppressUntilMs = Date.now() + 60000
+      suppressLookups(LONG_SUPPRESSION_MS)
       chrome.storage.local.set({
-        error: { type: "rate_limited", reset: res.reset, time: Date.now() }
+        [STORAGE_KEYS.error]: {
+          type: "rate_limited",
+          reset: res.reset,
+          time: Date.now()
+        }
       })
     } else if (res?.status === "api_unreachable") {
-      suppressUntilMs = Date.now() + 60000
+      suppressLookups(LONG_SUPPRESSION_MS)
       chrome.storage.local.set({
-        error: { type: "api_unreachable", time: Date.now() }
+        [STORAGE_KEYS.error]: { type: "api_unreachable", time: Date.now() }
       })
-    } else if (!activeTimestamps) {
-      if (retryCount < MAX_RETRIES) {
-        retryCount++
+    } else if (!state.activeSegments) {
+      if (state.retryCount < MAX_RETRIES) {
+        state.retryCount++
         console.log(
-          `No segments found, retry attempt ${retryCount}/${MAX_RETRIES}`
+          `No segments found, retry attempt ${state.retryCount}/${MAX_RETRIES}`
         )
-        suppressUntilMs = Date.now() + 5000
-        setTimeout(init, 5000)
+        suppressLookups(SHORT_SUPPRESSION_MS)
+        setTimeout(init, SEGMENT_RETRY_DELAY_MS)
       } else {
         console.log(
           "Max retries reached for finding segments, stopping attempts"
         )
-        suppressUntilMs = Date.now() + 60000
+        suppressLookups(LONG_SUPPRESSION_MS)
       }
     }
   } finally {
-    if (inFlightMediaKey) {
-      inFlightMediaKey = null
+    if (state.inFlightMediaKey) {
+      state.inFlightMediaKey = null
     }
-    initRunning = false
+    state.initRunning = false
   }
 }
 
@@ -454,9 +510,9 @@ chrome.runtime.onMessage.addListener(
     if (msg.action === "getPlayerInfo") {
       const video = getActiveVideo()
       const currentTime = video?.currentTime
-      if (lastPlayerInfo) {
+      if (state.lastPlayerInfo) {
         const response: PlayerInfoMessage = {
-          ...lastPlayerInfo,
+          ...state.lastPlayerInfo,
           available: true,
           playerAvailable: Boolean(video),
           currentTime: typeof currentTime === "number" ? currentTime : undefined
@@ -471,7 +527,8 @@ chrome.runtime.onMessage.addListener(
         )
           .then(async (ctx) => {
             let resolvedTmdbId = ctx?.tmdb_id
-            let resolvedTitle = lastPlayerInfo?.title || ctx.title || "Detected"
+            let resolvedTitle =
+              state.lastPlayerInfo?.title || ctx.title || "Detected"
 
             if (ctx && !resolvedTmdbId && !ctx.imdb_id && ctx.title) {
               const discovery = (await chrome.runtime.sendMessage({

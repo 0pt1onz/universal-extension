@@ -12,26 +12,41 @@ import { MainPage, type SegmentType } from "./popup/MainPage"
 import { SetupPage } from "./popup/SetupPage"
 import { StatsPage } from "./popup/StatsPage"
 import { formatSeconds, formatTime, parseTimeToSeconds } from "./popup/utils"
+import type { MediaType, PlayerInfoMessage } from "./shared/media"
 
-type PlayerInfoResponse = null | {
-  available?: boolean
-  reason?: string
-  title?: string
-  tmdb_id?: number
-  type?: "tv" | "movie"
-  season?: number
-  episode?: number
-  currentTime?: number
-  playerAvailable?: boolean
+type PopupView = "setup" | "main" | "stats"
+type PlayerInfoResponse = PlayerInfoMessage | null
+type ActiveTabPlayerInfoResult =
+  | { state: "missing_tab"; response: null }
+  | { state: "unsupported_page"; response: null }
+  | { state: "message_failed"; response: null; error: string | undefined }
+  | { state: "ok"; response: PlayerInfoResponse }
+
+const ACTIVE_TAB_QUERY = { active: true, currentWindow: true }
+const PLAYER_INFO_MESSAGE = { action: "getPlayerInfo" }
+const POLL_INTERVAL_MS = 5000
+const RECENT_ERROR_WINDOW_MS = 60000
+const UNSUPPORTED_URL_PREFIXES = [
+  "chrome://",
+  "edge://",
+  "about:",
+  "moz-extension://"
+]
+
+function isSupportedTabUrl(url?: string) {
+  return (
+    Boolean(url) &&
+    !UNSUPPORTED_URL_PREFIXES.some((prefix) => url.startsWith(prefix))
+  )
 }
 
 function IndexPopup() {
   const { t } = useTranslation()
-  const [view, setView] = useState<"setup" | "main" | "stats">("setup")
+  const [view, setView] = useState<PopupView>("setup")
   const [mediaTitle, setMediaTitle] = useState("Detecting...")
   const [mediaMeta, setMediaMeta] = useState("Initializing")
   const [tmdbId, setTmdbId] = useState("")
-  const [mediaType, setMediaType] = useState("movie")
+  const [mediaType, setMediaType] = useState<MediaType>("movie")
   const [season, setSeason] = useState("")
   const [episode, setEpisode] = useState("")
   const [startSec, setStartSec] = useState("")
@@ -40,64 +55,141 @@ function IndexPopup() {
   const [status, setStatus] = useState("")
   const [statusColor, setStatusColor] = useState("")
   const [notice, setNotice] = useState("")
-  const [setupPageKey, setSetupPageKey] = useState("")
-  const [errorMessage, setErrorMessage] = useState(null)
+  const [showDebugLogs, setShowDebugLogs] = useState(false)
+  const [debugLogs, setDebugLogs] = useState<string[]>([])
+  const [apiKeyInput, setApiKeyInput] = useState("")
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const startSecRef = useRef(startSec)
   const canSubmit = Number.isFinite(Number(tmdbId)) && Number(tmdbId) > 0
 
+  const appendDebugLog = useCallback((message: string) => {
+    console.debug("[popup]", message)
+    setDebugLogs((previousLogs) => {
+      if (previousLogs[0] === message) {
+        return previousLogs
+      }
+
+      return [message, ...previousLogs].slice(0, 6)
+    })
+  }, [])
+
+  const getPlayerInfoFromActiveTab = useCallback(async () => {
+    const [tab] = await api.tabs.query(ACTIVE_TAB_QUERY)
+    if (!tab?.id) {
+      appendDebugLog("No active tab id available for popup lookup.")
+      return {
+        state: "missing_tab",
+        response: null
+      } satisfies ActiveTabPlayerInfoResult
+    }
+
+    if (!isSupportedTabUrl(tab.url)) {
+      appendDebugLog(`Unsupported tab URL: ${tab.url}`)
+      return {
+        state: "unsupported_page",
+        response: null
+      } satisfies ActiveTabPlayerInfoResult
+    }
+
+    const result = await new Promise<{
+      response: PlayerInfoResponse
+      error?: string
+    }>((resolve) => {
+      api.tabs.sendMessage(tab.id, PLAYER_INFO_MESSAGE, (message) => {
+        if (api.runtime.lastError) {
+          resolve({
+            response: null,
+            error: api.runtime.lastError.message
+          })
+          return
+        }
+
+        resolve({ response: message })
+      })
+    })
+
+    if (result.error) {
+      appendDebugLog(`sendMessage failed: ${result.error}`)
+      return {
+        state: "message_failed",
+        response: null,
+        error: result.error
+      } satisfies ActiveTabPlayerInfoResult
+    }
+
+    appendDebugLog("Content script responded to getPlayerInfo.")
+    return {
+      state: "ok",
+      response: result.response
+    } satisfies ActiveTabPlayerInfoResult
+  }, [appendDebugLog])
+
   const loadPlayerInfo = useCallback(async () => {
-    const [tab] = await api.tabs.query({ active: true, currentWindow: true })
-    if (
-      !tab ||
-      tab.url?.startsWith("chrome://") ||
-      tab.url?.startsWith("edge://") ||
-      tab.url?.startsWith("about:") ||
-      tab.url?.startsWith("moz-extension://")
-    ) {
+    const { state, response, error } = await getPlayerInfoFromActiveTab()
+
+    if (state === "missing_tab" || state === "unsupported_page") {
+      setNotice("")
       setMediaTitle(t("errors.cannotRunOnThisPage"))
+      setMediaMeta("")
       return
     }
-    api.tabs.sendMessage(
-      tab.id!,
-      { action: "getPlayerInfo" },
-      (response: PlayerInfoResponse) => {
-        if (api.runtime.lastError) {
-          setMediaTitle(t("errors.refreshPageToSync"))
-          return
-        }
-        if (!response || response.available === false) {
-          setNotice("")
-          setMediaTitle(t("errors.notAvailableOnThisPage"))
-          setMediaMeta(t("errors.noHtmlVideoPlayerDetected"))
-          return
-        }
-        setNotice(
-          response.playerAvailable === false
-            ? t("popup.skippingUnavailableMediaFound")
-            : ""
-        )
-        setTmdbId(String(response.tmdb_id || ""))
-        setMediaType(response.type || "movie")
-        const currentTimeSec =
-          typeof response.currentTime === "number" ? response.currentTime : null
-        if (typeof currentTimeSec === "number" && startSecRef.current === "") {
-          setStartSec(formatTime(currentTimeSec))
-        }
-        setMediaTitle(response.title || "Detected")
-        if (response.type === "tv") {
-          setSeason(String(response.season ?? ""))
-          setEpisode(String(response.episode ?? ""))
-          setMediaMeta(
-            response.season && response.episode
-              ? `${t("media.season")} ${response.season} - ${t("media.episode")} ${response.episode}`
-              : t("media.tvSeries")
-          )
-        } else {
-          setMediaMeta(t("media.featureFilm"))
-        }
-      }
+
+    if (state === "message_failed" || !response) {
+      setNotice(
+        "This tab does not have an active content script yet. Reload the page once to reconnect the extension."
+      )
+      setMediaTitle(t("errors.refreshPageToSync"))
+      setMediaMeta(
+        error ? "The extension needs to reattach to the current tab." : ""
+      )
+      return
+    }
+
+    if (response.available === false) {
+      appendDebugLog(
+        `Player info unavailable${response.reason ? `: ${response.reason}` : "."}`
+      )
+      setNotice("")
+      setMediaTitle(t("errors.notAvailableOnThisPage"))
+      setMediaMeta(t("errors.noHtmlVideoPlayerDetected"))
+      return
+    }
+
+    appendDebugLog(
+      `Detected ${response.type || "movie"}: ${response.title || "Detected"}`
     )
-  }, [t])
+    setNotice(
+      response.playerAvailable === false
+        ? t("popup.skippingUnavailableMediaFound")
+        : ""
+    )
+    setTmdbId(String(response.tmdb_id || ""))
+    setMediaType(response.type || "movie")
+
+    if (
+      typeof response.currentTime === "number" &&
+      startSecRef.current.trim() === ""
+    ) {
+      setStartSec(formatTime(response.currentTime))
+    }
+
+    setMediaTitle(response.title || "Detected")
+
+    if (response.type === "tv") {
+      setSeason(String(response.season ?? ""))
+      setEpisode(String(response.episode ?? ""))
+      setMediaMeta(
+        response.season && response.episode
+          ? `${t("media.season")} ${response.season} - ${t("media.episode")} ${response.episode}`
+          : t("media.tvSeries")
+      )
+      return
+    }
+
+    setSeason("")
+    setEpisode("")
+    setMediaMeta(t("media.featureFilm"))
+  }, [appendDebugLog, getPlayerInfoFromActiveTab, t])
 
   useEffect(() => {
     startSecRef.current = startSec
@@ -106,21 +198,26 @@ function IndexPopup() {
   useEffect(() => {
     api.storage.local
       .get(["introdb_api_key", "error"])
-      .then(({ introdb_api_key, error }) => {
-        if (error && Date.now() - error.time < 1000 * 60) {
-          // Only show recent errors (1 minute)
+      .then(async (storage) => {
+        const { introdb_api_key, error } = storage
+        const storedApiKey =
+          typeof introdb_api_key === "string" ? introdb_api_key : ""
+
+        setApiKeyInput(storedApiKey)
+
+        if (error && Date.now() - error.time < RECENT_ERROR_WINDOW_MS) {
           if (error.type === "rate_limited") {
             const timeString = formatSeconds(error.reset)
             setErrorMessage(t("errors.rateLimited", { timeString }))
           } else if (error.type === "api_unreachable") {
             setErrorMessage(t("errors.apiUnreachable"))
           }
-          api.storage.local.remove("error")
+          await api.storage.local.remove("error")
         }
 
-        if (introdb_api_key) {
+        if (storedApiKey) {
           setView("main")
-          loadPlayerInfo()
+          await loadPlayerInfo()
         }
       })
   }, [loadPlayerInfo, t])
@@ -129,31 +226,19 @@ function IndexPopup() {
     if (view !== "main") return
     const id = setInterval(() => {
       loadPlayerInfo()
-    }, 5000)
+    }, POLL_INTERVAL_MS)
     return () => clearInterval(id)
-  }, [view, loadPlayerInfo, t])
-
-  useEffect(() => {
-    if (view === "setup") {
-      api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
-        setSetupPageKey(
-          typeof introdb_api_key === "string" ? introdb_api_key : ""
-        )
-      })
-    }
-  }, [view])
+  }, [view, loadPlayerInfo])
 
   async function handleSaveKey() {
-    const key = (
-      document.getElementById("api-key-input") as HTMLInputElement
-    )?.value?.trim()
+    const key = apiKeyInput.trim()
     if (key) {
       await api.storage.local.set({ introdb_api_key: key })
       setView("main")
-      loadPlayerInfo()
+      await loadPlayerInfo()
     } else {
       await api.storage.local.remove("introdb_api_key")
-      setSetupPageKey("")
+      setApiKeyInput("")
     }
   }
 
@@ -206,13 +291,13 @@ function IndexPopup() {
     }
   }
 
-  function handleClearKey() {
-    api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
-      setSetupPageKey(
-        typeof introdb_api_key === "string" ? introdb_api_key : ""
-      )
-      setView("setup")
-    })
+  async function handleDisconnect() {
+    await api.storage.local.remove("introdb_api_key")
+    setApiKeyInput("")
+    setStatus("")
+    setStatusColor("")
+    setNotice("")
+    setView("setup")
   }
 
   const goToStats = () => {
@@ -221,23 +306,15 @@ function IndexPopup() {
 
   const goToMain = () => {
     setView("main")
-    api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
-      if (introdb_api_key && view !== "setup") {
-        loadPlayerInfo()
-      }
-    })
+    loadPlayerInfo()
   }
 
   const fetchCurrentPlayerTimeSec = async () => {
-    const [tab] = await api.tabs.query({ active: true, currentWindow: true })
-    if (!tab?.id) return null
-
-    const res = await new Promise<PlayerInfoResponse>((resolve) => {
-      api.tabs.sendMessage(tab.id!, { action: "getPlayerInfo" }, resolve)
-    })
-
-    if (!res || res.available === false) return null
-    return typeof res.currentTime === "number" ? res.currentTime : null
+    const { response } = await getPlayerInfoFromActiveTab()
+    if (!response || response.available === false) return null
+    return typeof response.currentTime === "number"
+      ? response.currentTime
+      : null
   }
 
   const handleUsePlayerTimeForStart = async () => {
@@ -297,13 +374,19 @@ function IndexPopup() {
 
           <div className="box-border w-full overflow-hidden bg-gray-900/60 p-[18px] rounded-4xl border border-white/[.08] shadow-[0_15px_35px_rgba(0,0,0,0.6)]">
             {view === "setup" && (
-              <SetupPage initialKey={setupPageKey} onSaveKey={handleSaveKey} />
+              <SetupPage
+                apiKey={apiKeyInput}
+                onApiKeyChange={setApiKeyInput}
+                onSaveKey={handleSaveKey}
+              />
             )}
             {view === "main" && (
               <MainPage
                 notice={notice}
                 mediaTitle={mediaTitle}
                 mediaMeta={mediaMeta}
+                showDebugLogs={showDebugLogs}
+                debugLogs={debugLogs}
                 canSubmit={canSubmit}
                 segment={segment}
                 setSegment={setSegment}
@@ -316,12 +399,16 @@ function IndexPopup() {
                 status={status}
                 statusColor={statusColor}
                 onSubmit={handleSubmit}
-                onDisconnect={handleClearKey}
+                onDisconnect={handleDisconnect}
               />
             )}
             {view === "stats" && <StatsPage />}
           </div>
-          <Footer />
+          <Footer
+            onVersionDoubleClick={() =>
+              setShowDebugLogs((currentValue) => !currentValue)
+            }
+          />
         </div>
       </div>
     </>

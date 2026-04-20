@@ -1,8 +1,14 @@
+import {
+  END_OF_VIDEO_SENTINEL_MS,
+  SEGMENT_TYPES,
+  type Segment
+} from "~/shared/media"
+
+import { INTRODB_API_URL } from "./shared/config"
+
 export {}
 
 const TMDB_TOKEN = process.env.PLASMO_PUBLIC_TMDB_TOKEN
-const INTRODB_API =
-  process.env.PLASMO_PUBLIC_INTRODB_API || "https://api.theintrodb.org/v2"
 const INTRODB_USER_AGENT = "TheIntroDB Universal Extension/1.0"
 
 interface TMDBResult {
@@ -24,10 +30,10 @@ interface DiscoveryResult {
   tmdb_id?: number
   title?: string
   year?: string
-  intro?: Array<{ start_ms: number; end_ms: number }>
-  recap?: Array<{ start_ms: number; end_ms: number }>
-  credits?: Array<{ start_ms: number; end_ms: number }>
-  preview?: Array<{ start_ms: number; end_ms: number }>
+  intro?: Segment[]
+  recap?: Segment[]
+  credits?: Segment[]
+  preview?: Segment[]
   reset?: number
 }
 
@@ -133,7 +139,7 @@ async function handleDiscovery(
     }
 
     const introRes = await fetch(
-      `${INTRODB_API}/media?tmdb_id=${tmdbId}${data.isTV ? `&season=${sNum}&episode=${eNum}` : ""}`,
+      `${INTRODB_API_URL}/media?tmdb_id=${tmdbId}${data.isTV ? `&season=${sNum}&episode=${eNum}` : ""}`,
       { headers }
     )
 
@@ -163,19 +169,19 @@ async function handleDiscovery(
       title: tmdbResult?.title || tmdbResult?.name || data.title,
       year: tmdbResult?.release_date || tmdbResult?.first_air_date || data.year
     }
-    const keys = ["intro", "recap", "credits", "preview"] as const
-
-    const END_OF_VIDEO_MS = 86400000
-    for (const key of keys) {
+    for (const key of SEGMENT_TYPES) {
       const raw = introData[key]
       if (!Array.isArray(raw)) continue
       const segments = (raw as IntroDBSegment[])
         .map((s) => {
           const start = s.start_ms ?? (s.start ? s.start * 1000 : 0)
-          const end = s.end_ms ?? (s.end ? s.end * 1000 : END_OF_VIDEO_MS)
+          const end =
+            s.end_ms ?? (s.end ? s.end * 1000 : END_OF_VIDEO_SENTINEL_MS)
           return { start_ms: start, end_ms: end }
         })
-        .filter((s) => s.end_ms > s.start_ms || s.end_ms >= END_OF_VIDEO_MS)
+        .filter(
+          (s) => s.end_ms > s.start_ms || s.end_ms >= END_OF_VIDEO_SENTINEL_MS
+        )
       if (segments.length > 0) result[key] = segments
     }
     return result

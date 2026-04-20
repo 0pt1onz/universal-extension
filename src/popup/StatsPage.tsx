@@ -1,28 +1,79 @@
 import React, { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { api } from "./api"
+import {
+  TRACKED_SEGMENT_TYPES,
+  type TrackableSegmentType
+} from "~/shared/media"
+
+import { api, API_URL } from "./api"
+
+type SegmentTotals = Record<TrackableSegmentType, number>
+
+interface UserSubmissionsState {
+  total: number
+  accepted: number
+  pending: number
+  rejected: number
+  acceptance_rate: number
+  current_streak: number
+  best_streak: number
+}
+
+interface LocalSkipStats {
+  segments_skipped?: Partial<SegmentTotals>
+  time_saved_by_type_ms?: Partial<SegmentTotals>
+}
 
 interface StatsState {
   total_time_saved_ms: number
-  segments_skipped: { intro: number; recap: number; credits: number }
-  time_saved_by_type_ms: { intro: number; recap: number; credits: number }
+  segments_skipped: SegmentTotals
+  time_saved_by_type_ms: SegmentTotals
   total_submissions: number
-  userSubmissions?: {
-    total: number
-    accepted: number
-    pending: number
-    rejected: number
-    acceptance_rate: number
-    current_streak: number
-    best_streak: number
+  userSubmissions?: UserSubmissionsState
+}
+
+const createEmptySegmentTotals = (): SegmentTotals => ({
+  intro: 0,
+  recap: 0,
+  credits: 0
+})
+
+const mergeSegmentTotals = (
+  values?: Partial<SegmentTotals>
+): SegmentTotals => ({
+  ...createEmptySegmentTotals(),
+  ...values
+})
+
+const getTotalSavedTime = (values: Partial<SegmentTotals> | undefined) =>
+  TRACKED_SEGMENT_TYPES.reduce(
+    (total, type) => total + Number(values?.[type] || 0),
+    0
+  )
+
+const normalizeUserSubmissions = (
+  data: Record<string, unknown>
+): UserSubmissionsState | undefined => {
+  if (typeof data.total !== "number" && typeof data.accepted !== "number") {
+    return undefined
+  }
+
+  return {
+    total: Number(data.total) || 0,
+    accepted: Number(data.accepted) || 0,
+    pending: Number(data.pending) || 0,
+    rejected: Number(data.rejected) || 0,
+    acceptance_rate: Number(data.acceptance_rate) || 0,
+    current_streak: Number(data.current_streak) || 0,
+    best_streak: Number(data.best_streak) || 0
   }
 }
 
 const DEFAULT_STATS: StatsState = {
   total_time_saved_ms: 0,
-  segments_skipped: { intro: 0, recap: 0, credits: 0 },
-  time_saved_by_type_ms: { intro: 0, recap: 0, credits: 0 },
+  segments_skipped: createEmptySegmentTotals(),
+  time_saved_by_type_ms: createEmptySegmentTotals(),
   total_submissions: 0
 }
 
@@ -37,7 +88,7 @@ const StatsPage: React.FC = () => {
       try {
         let communityTotal = 0
         try {
-          const res = await fetch("https://api.theintrodb.org/v2/stats")
+          const res = await fetch(`${API_URL}/stats`)
           if (res.ok) {
             const data = await res.json()
             communityTotal = data.total_submissions || 0
@@ -50,7 +101,7 @@ const StatsPage: React.FC = () => {
           "skipButtonStats",
           "introdb_api_key"
         ])
-        const local = storage.skipButtonStats
+        const local = storage.skipButtonStats as LocalSkipStats | undefined
         const introdb_api_key = storage.introdb_api_key as string | undefined
 
         const baseStats: StatsState = {
@@ -59,33 +110,29 @@ const StatsPage: React.FC = () => {
         }
 
         if (local) {
-          const totalSaved =
-            (local.time_saved_by_type_ms?.intro || 0) +
-            (local.time_saved_by_type_ms?.recap || 0) +
-            (local.time_saved_by_type_ms?.credits || 0)
-          baseStats.total_time_saved_ms = totalSaved
-          baseStats.segments_skipped = {
-            ...DEFAULT_STATS.segments_skipped,
-            ...local.segments_skipped
-          }
-          baseStats.time_saved_by_type_ms = {
-            ...DEFAULT_STATS.time_saved_by_type_ms,
-            ...local.time_saved_by_type_ms
-          }
+          baseStats.total_time_saved_ms = getTotalSavedTime(
+            local.time_saved_by_type_ms
+          )
+          baseStats.segments_skipped = mergeSegmentTotals(
+            local.segments_skipped
+          )
+          baseStats.time_saved_by_type_ms = mergeSegmentTotals(
+            local.time_saved_by_type_ms
+          )
         }
 
         setApiKeyError(null)
         if (introdb_api_key?.trim()) {
           try {
-            const userRes = await fetch(
-              "https://api.theintrodb.org/v2/user/stats",
-              {
-                headers: {
-                  Authorization: `Bearer ${introdb_api_key.trim()}`
-                }
+            const userRes = await fetch(`${API_URL}/user/stats`, {
+              headers: {
+                Authorization: `Bearer ${introdb_api_key.trim()}`
               }
-            )
-            const userData = await userRes.json().catch(() => ({}))
+            })
+            const userData = (await userRes.json().catch(() => ({}))) as Record<
+              string,
+              unknown
+            >
             if (!userRes.ok) {
               if (userRes.status === 401) {
                 setApiKeyError(t("errors.apiKeyNotAccepted"))
@@ -97,20 +144,8 @@ const StatsPage: React.FC = () => {
               if (typeof tsMs === "number" && tsMs >= 0) {
                 baseStats.total_time_saved_ms = tsMs
               }
-              if (
-                typeof userData.total === "number" ||
-                typeof userData.accepted === "number"
-              ) {
-                baseStats.userSubmissions = {
-                  total: Number(userData.total) || 0,
-                  accepted: Number(userData.accepted) || 0,
-                  pending: Number(userData.pending) || 0,
-                  rejected: Number(userData.rejected) || 0,
-                  acceptance_rate: Number(userData.acceptance_rate) || 0,
-                  current_streak: Number(userData.current_streak) || 0,
-                  best_streak: Number(userData.best_streak) || 0
-                }
-              }
+
+              baseStats.userSubmissions = normalizeUserSubmissions(userData)
             }
           } catch (e) {
             console.error("User stats fetch failed", e)

@@ -1,12 +1,16 @@
 import { useTranslation } from "react-i18next"
 
+interface SetupPageProps {
+  apiKey: string
+  onApiKeyChange: (value: string) => void
+  onSaveKey: () => void | Promise<void>
+}
+
 export function SetupPage({
-  initialKey = "",
+  apiKey,
+  onApiKeyChange,
   onSaveKey
-}: {
-  initialKey?: string
-  onSaveKey: () => void
-}) {
+}: SetupPageProps) {
   const { t } = useTranslation()
 
   return (
@@ -15,11 +19,11 @@ export function SetupPage({
         {t("popup.apiKey")}
       </label>
       <input
-        key={initialKey || "empty"}
         id="api-key-input"
         type="password"
         placeholder={t("popup.enterApiKey")}
-        defaultValue={initialKey}
+        value={apiKey}
+        onChange={(event) => onApiKeyChange(event.target.value)}
         className="w-full min-w-0 p-[11px] bg-[#151515] border border-white/[.08] rounded-4xl box-border text-white text-[13px] mb-3"
       />
       <button
