@@ -1,6 +1,6 @@
-import i18next from "i18next"
 import type { PlasmoCSConfig } from "plasmo"
 
+import i18next from "~/i18n/config"
 import { extractMediaContext } from "~/websites"
 
 export const config: PlasmoCSConfig = {

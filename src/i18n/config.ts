@@ -44,8 +44,8 @@ i18n
     },
 
     detection: {
-      order: ["localStorage", "navigator", "htmlTag"],
-      caches: ["localStorage"]
+      order: ["navigator", "htmlTag"],
+      caches: []
     }
   })
 
