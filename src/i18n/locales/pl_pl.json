@@ -27,7 +27,9 @@
     "disabled": "Wyłączone",
     "on": "na",
     "github": "GitHub",
-    "skippingUnavailableMediaFound": "Pomijanie nie jest tutaj dostępne, ale multimedia zostały znalezione i nadal możesz ręcznie przesłać segmenty."
+    "skippingUnavailableMediaFound": "Pomijanie nie jest tutaj dostępne, ale multimedia zostały znalezione i nadal możesz ręcznie przesłać segmenty.",
+    "anonymousUsageReporting": "Anonimowe raportowanie użycia",
+    "anonymousUsageReportingDescription": "Pomaga ulepszać rozszerzenie, wysyłając anonimowe statystyki (bez danych osobowych)."
   },
   "content": {
     "skipButton": {

@@ -3,6 +3,7 @@ import {
   SEGMENT_TYPES,
   type Segment
 } from "~/shared/media"
+import { initAnonymousUsageReporting } from "~/background/analytics"
 
 import { INTRODB_API_URL } from "./shared/config"
 
@@ -10,6 +11,8 @@ export {}
 
 const TMDB_TOKEN = process.env.PLASMO_PUBLIC_TMDB_TOKEN
 const INTRODB_USER_AGENT = "TheIntroDB Universal Extension/1.0"
+
+void initAnonymousUsageReporting()
 
 interface TMDBResult {
   id: number

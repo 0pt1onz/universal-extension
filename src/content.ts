@@ -1,6 +1,7 @@
 import type { PlasmoCSConfig } from "plasmo"
 
 import i18next from "~/i18n/config"
+import { trackAnalyticsEvent } from "~/shared/analytics"
 import {
   END_OF_VIDEO_SENTINEL_MS,
   SEGMENT_TYPES,
@@ -53,6 +54,7 @@ interface ContentRuntimeState {
   skipButton: HTMLButtonElement | null
   playbackIntervalId: ReturnType<typeof setInterval> | null
   lastPlayerInfo: LastPlayerInfo | null
+  trackedMediaKey: string | null
   retryCount: number
   lastUrl: string
   urlMonitoringStarted: boolean
@@ -88,6 +90,7 @@ const state: ContentRuntimeState = {
   skipButton: null,
   playbackIntervalId: null,
   lastPlayerInfo: null,
+  trackedMediaKey: null,
   retryCount: 0,
   lastUrl: window.location.href,
   urlMonitoringStarted: false,
@@ -180,6 +183,7 @@ function clearMediaState() {
   state.lastPlayerInfo = null
   state.activeMediaKey = null
   state.inFlightMediaKey = null
+  state.trackedMediaKey = null
 }
 
 function resetPageState() {
@@ -315,6 +319,15 @@ function createBtn(type: string, endMs: number) {
       const savedMs = endMs - currentMs
 
       await recordSkip(type, savedMs)
+      trackAnalyticsEvent("skip_click", {
+        segment: type.toLowerCase(),
+        savedMs: Math.max(0, Math.round(savedMs)),
+        tmdbId: state.lastPlayerInfo?.tmdb_id ?? 0,
+        mediaType: state.lastPlayerInfo?.type ?? "movie",
+        season: state.lastPlayerInfo?.season ?? 0,
+        episode: state.lastPlayerInfo?.episode ?? 0,
+        host: window.location.hostname.replace(/^www\./, "")
+      })
 
       Object.getOwnPropertyDescriptor(
         HTMLMediaElement.prototype,
@@ -464,6 +477,30 @@ async function init() {
         episode: ctx.episode
       }
       state.activeMediaKey = mediaKey
+
+      if (state.trackedMediaKey !== mediaKey) {
+        state.trackedMediaKey = mediaKey
+        const host = window.location.hostname.replace(/^www\./, "")
+        trackAnalyticsEvent("media_detected", {
+          tmdbId: state.lastPlayerInfo.tmdb_id ?? 0,
+          mediaType: state.lastPlayerInfo.type,
+          season: state.lastPlayerInfo.season ?? 0,
+          episode: state.lastPlayerInfo.episode ?? 0,
+          host
+        })
+        trackAnalyticsEvent("segments_loaded", {
+          tmdbId: state.lastPlayerInfo.tmdb_id ?? 0,
+          mediaType: state.lastPlayerInfo.type,
+          season: state.lastPlayerInfo.season ?? 0,
+          episode: state.lastPlayerInfo.episode ?? 0,
+          host,
+          introCount: state.activeSegments.intro?.length ?? 0,
+          recapCount: state.activeSegments.recap?.length ?? 0,
+          creditsCount: state.activeSegments.credits?.length ?? 0,
+          previewCount: state.activeSegments.preview?.length ?? 0
+        })
+      }
+
       // Reset retry counter on successful data retrieval
       state.retryCount = 0
       state.suppressUntilMs = 0

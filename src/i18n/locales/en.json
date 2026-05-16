@@ -27,7 +27,9 @@
     "disabled": "Disabled",
     "on": "on",
     "github": "Github",
-    "skippingUnavailableMediaFound": "Skipping isn't available here, but the media was found and you can still submit segments manually."
+    "skippingUnavailableMediaFound": "Skipping isn't available here, but the media was found and you can still submit segments manually.",
+    "anonymousUsageReporting": "Anonymous usage reporting",
+    "anonymousUsageReportingDescription": "Helps improve the extension by sending anonymous analytics (no personal data)."
   },
   "content": {
     "skipButton": {

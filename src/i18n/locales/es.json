@@ -27,7 +27,9 @@
     "disabled": "Desactivado",
     "on": "en",
     "github": "GitHub",
-    "skippingUnavailableMediaFound": "Omitir no está disponible aquí, pero se encontró el contenido y aún puedes enviar segmentos manualmente."
+    "skippingUnavailableMediaFound": "Omitir no está disponible aquí, pero se encontró el contenido y aún puedes enviar segmentos manualmente.",
+    "anonymousUsageReporting": "Informes de uso anónimos",
+    "anonymousUsageReportingDescription": "Ayuda a mejorar la extensión enviando analíticas anónimas (sin datos personales)."
   },
   "content": {
     "skipButton": {

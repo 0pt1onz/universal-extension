@@ -27,7 +27,9 @@
     "disabled": "Deaktiviert",
     "on": "auf",
     "github": "GitHub",
-    "skippingUnavailableMediaFound": "Überspringen ist hier nicht verfügbar, aber das Medium wurde gefunden und du kannst Segmente trotzdem manuell einreichen."
+    "skippingUnavailableMediaFound": "Überspringen ist hier nicht verfügbar, aber das Medium wurde gefunden und du kannst Segmente trotzdem manuell einreichen.",
+    "anonymousUsageReporting": "Anonyme Nutzungsstatistiken",
+    "anonymousUsageReportingDescription": "Hilft, die Erweiterung zu verbessern, indem anonyme Analysedaten gesendet werden (keine personenbezogenen Daten)."
   },
   "content": {
     "skipButton": {

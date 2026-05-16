@@ -3,12 +3,16 @@ import { useTranslation } from "react-i18next"
 interface SetupPageProps {
   apiKey: string
   onApiKeyChange: (value: string) => void
+  anonymousUsageReportingEnabled: boolean
+  onAnonymousUsageReportingChange: (enabled: boolean) => void | Promise<void>
   onSaveKey: () => void | Promise<void>
 }
 
 export function SetupPage({
   apiKey,
   onApiKeyChange,
+  anonymousUsageReportingEnabled,
+  onAnonymousUsageReportingChange,
   onSaveKey
 }: SetupPageProps) {
   const { t } = useTranslation()
@@ -32,6 +36,24 @@ export function SetupPage({
         className="border-gradient-pill p-3.5 w-full cursor-pointer font-bold uppercase text-[11px] tracking-[1px] text-green-400 hover:text-green-400 border-green-400/30">
         {t("popup.authorize")}
       </button>
+      <label className="mt-4 flex gap-2.5 items-start text-xs text-gray-300">
+        <input
+          type="checkbox"
+          checked={anonymousUsageReportingEnabled}
+          onChange={(event) =>
+            onAnonymousUsageReportingChange(event.target.checked)
+          }
+          className="mt-0.5"
+        />
+        <span className="leading-snug">
+          <span className="font-bold text-gray-200">
+            {t("popup.anonymousUsageReporting")}
+          </span>
+          <span className="block text-[11px] text-gray-400 mt-1">
+            {t("popup.anonymousUsageReportingDescription")}
+          </span>
+        </span>
+      </label>
     </div>
   )
 }

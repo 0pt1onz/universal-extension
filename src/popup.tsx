@@ -12,6 +12,12 @@ import { MainPage, type SegmentType } from "./popup/MainPage"
 import { SetupPage } from "./popup/SetupPage"
 import { StatsPage } from "./popup/StatsPage"
 import { formatSeconds, formatTime, parseTimeToSeconds } from "./popup/utils"
+import {
+  ANALYTICS_STORAGE_KEY,
+  normalizeAnalyticsEnabled,
+  trackAnalyticsEvent,
+  writeAnonymousUsageReportingEnabled
+} from "./shared/analytics"
 import type { MediaType, PlayerInfoMessage } from "./shared/media"
 
 type PopupView = "setup" | "main" | "stats"
@@ -58,8 +64,11 @@ function IndexPopup() {
   const [showDebugLogs, setShowDebugLogs] = useState(false)
   const [debugLogs, setDebugLogs] = useState<string[]>([])
   const [apiKeyInput, setApiKeyInput] = useState("")
+  const [anonymousUsageReportingEnabled, setAnonymousUsageReportingEnabled] =
+    useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const startSecRef = useRef(startSec)
+  const trackedPopupMediaKeyRef = useRef<string | null>(null)
   const canSubmit = Number.isFinite(Number(tmdbId)) && Number(tmdbId) > 0
 
   const appendDebugLog = useCallback((message: string) => {
@@ -72,6 +81,28 @@ function IndexPopup() {
       return [message, ...previousLogs].slice(0, 6)
     })
   }, [])
+
+  const track = useCallback(
+    (name: string, props?: Record<string, string | number>) => {
+      if (!anonymousUsageReportingEnabled) return
+      trackAnalyticsEvent(name, props)
+    },
+    [anonymousUsageReportingEnabled]
+  )
+
+  const currentMediaProps = useCallback(() => {
+    const tmdbIdNumber = Number(tmdbId)
+    const normalizedTmdbId = Number.isFinite(tmdbIdNumber) ? tmdbIdNumber : 0
+    const normalizedSeason = mediaType === "tv" ? Number(season) || 0 : 0
+    const normalizedEpisode = mediaType === "tv" ? Number(episode) || 0 : 0
+
+    return {
+      tmdbId: normalizedTmdbId,
+      mediaType,
+      season: normalizedSeason,
+      episode: normalizedEpisode
+    }
+  }, [episode, mediaType, season, tmdbId])
 
   const getPlayerInfoFromActiveTab = useCallback(async () => {
     const [tab] = await api.tabs.query(ACTIVE_TAB_QUERY)
@@ -166,6 +197,19 @@ function IndexPopup() {
     setTmdbId(String(response.tmdb_id || ""))
     setMediaType(response.type || "movie")
 
+    const detectedTmdbId = Number(response.tmdb_id || 0)
+    const detectedMediaKey = `${response.type || "movie"}|${detectedTmdbId}|${Number(response.season || 0)}|${Number(response.episode || 0)}`
+    if (trackedPopupMediaKeyRef.current !== detectedMediaKey) {
+      trackedPopupMediaKeyRef.current = detectedMediaKey
+      track("popup_media_detected", {
+        tmdbId: detectedTmdbId,
+        mediaType: response.type || "movie",
+        season: Number(response.season || 0),
+        episode: Number(response.episode || 0),
+        playerAvailable: response.playerAvailable === false ? 0 : 1
+      })
+    }
+
     if (
       typeof response.currentTime === "number" &&
       startSecRef.current.trim() === ""
@@ -189,7 +233,7 @@ function IndexPopup() {
     setSeason("")
     setEpisode("")
     setMediaMeta(t("media.featureFilm"))
-  }, [appendDebugLog, getPlayerInfoFromActiveTab, t])
+  }, [appendDebugLog, getPlayerInfoFromActiveTab, t, track])
 
   useEffect(() => {
     startSecRef.current = startSec
@@ -197,13 +241,16 @@ function IndexPopup() {
 
   useEffect(() => {
     api.storage.local
-      .get(["introdb_api_key", "error"])
+      .get(["introdb_api_key", "error", ANALYTICS_STORAGE_KEY])
       .then(async (storage) => {
         const { introdb_api_key, error } = storage
         const storedApiKey =
           typeof introdb_api_key === "string" ? introdb_api_key : ""
 
         setApiKeyInput(storedApiKey)
+        setAnonymousUsageReportingEnabled(
+          normalizeAnalyticsEnabled(storage[ANALYTICS_STORAGE_KEY])
+        )
 
         if (error && Date.now() - error.time < RECENT_ERROR_WINDOW_MS) {
           if (error.type === "rate_limited") {
@@ -234,11 +281,20 @@ function IndexPopup() {
     const key = apiKeyInput.trim()
     if (key) {
       await api.storage.local.set({ introdb_api_key: key })
+      track("connect_click", currentMediaProps())
       setView("main")
       await loadPlayerInfo()
     } else {
       await api.storage.local.remove("introdb_api_key")
       setApiKeyInput("")
+    }
+  }
+
+  const handleAnonymousUsageReportingChange = async (enabled: boolean) => {
+    setAnonymousUsageReportingEnabled(enabled)
+    await writeAnonymousUsageReportingEnabled(enabled)
+    if (enabled) {
+      trackAnalyticsEvent("analytics_enabled")
     }
   }
 
@@ -265,6 +321,7 @@ function IndexPopup() {
     }
     setStatus(t("status.submitting"))
     try {
+      track("submit_click", { ...currentMediaProps(), segment })
       const res = await fetch(`${API_URL}/submit`, {
         method: "POST",
         headers: {
@@ -274,6 +331,7 @@ function IndexPopup() {
         body: JSON.stringify(payload)
       })
       if (res.ok) {
+        track("submit_success", { ...currentMediaProps(), segment })
         setStatus(t("status.submittedSuccessfully"))
         setStatusColor("text-green-400")
       } else {
@@ -282,10 +340,12 @@ function IndexPopup() {
           typeof errData?.error === "string"
             ? errData.error
             : errData?.message ?? "Failed"
+        track("submit_error", { ...currentMediaProps(), segment })
         setStatus(msg)
         setStatusColor("text-red-500")
       }
     } catch {
+      track("submit_error", { ...currentMediaProps(), segment })
       setStatus(t("status.connectionFailed"))
       setStatusColor("text-red-500")
     }
@@ -293,6 +353,7 @@ function IndexPopup() {
 
   async function handleDisconnect() {
     await api.storage.local.remove("introdb_api_key")
+    track("disconnect_click", currentMediaProps())
     setApiKeyInput("")
     setStatus("")
     setStatusColor("")
@@ -377,6 +438,10 @@ function IndexPopup() {
               <SetupPage
                 apiKey={apiKeyInput}
                 onApiKeyChange={setApiKeyInput}
+                anonymousUsageReportingEnabled={anonymousUsageReportingEnabled}
+                onAnonymousUsageReportingChange={
+                  handleAnonymousUsageReportingChange
+                }
                 onSaveKey={handleSaveKey}
               />
             )}
@@ -402,7 +467,14 @@ function IndexPopup() {
                 onDisconnect={handleDisconnect}
               />
             )}
-            {view === "stats" && <StatsPage />}
+            {view === "stats" && (
+              <StatsPage
+                anonymousUsageReportingEnabled={anonymousUsageReportingEnabled}
+                onAnonymousUsageReportingChange={
+                  handleAnonymousUsageReportingChange
+                }
+              />
+            )}
           </div>
           <Footer
             onVersionDoubleClick={() =>
