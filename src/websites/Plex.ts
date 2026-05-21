@@ -6,7 +6,9 @@ function getMetaContent(selector: string): string {
   return document.querySelector(selector)?.getAttribute("content")?.trim() || ""
 }
 
-function extractYear(...values: Array<string | null | undefined>): string | undefined {
+function extractYear(
+  ...values: Array<string | null | undefined>
+): string | undefined {
   for (const value of values) {
     if (!value) continue
     const match = value.match(/\b(19|20)\d{2}\b/)
@@ -29,7 +31,9 @@ function extractTitle(documentTitle: string): string {
   const tw = getMetaContent('meta[name="twitter:title"]')
   const heading =
     document.querySelector("h1")?.textContent?.trim() ||
-    document.querySelector("[data-testid='metadata-title']")?.textContent?.trim() ||
+    document
+      .querySelector("[data-testid='metadata-title']")
+      ?.textContent?.trim() ||
     ""
 
   let title = og || tw || heading || documentTitle || ""

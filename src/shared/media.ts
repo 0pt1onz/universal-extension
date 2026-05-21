@@ -1,9 +1,4 @@
-export const SEGMENT_TYPES = [
-  "intro",
-  "recap",
-  "credits",
-  "preview"
-] as const
+export const SEGMENT_TYPES = ["intro", "recap", "credits", "preview"] as const
 
 export const TRACKED_SEGMENT_TYPES = ["intro", "recap", "credits"] as const
 

@@ -1,9 +1,9 @@
+import { initAnonymousUsageReporting } from "~/background/analytics"
 import {
   END_OF_VIDEO_SENTINEL_MS,
   SEGMENT_TYPES,
   type Segment
 } from "~/shared/media"
-import { initAnonymousUsageReporting } from "~/background/analytics"
 
 import { INTRODB_API_URL } from "./shared/config"
 

@@ -568,7 +568,8 @@ chrome.runtime.onMessage.addListener(
           ...state.lastPlayerInfo,
           available: true,
           playerAvailable: Boolean(video),
-          currentTime: typeof currentTime === "number" ? currentTime : undefined,
+          currentTime:
+            typeof currentTime === "number" ? currentTime : undefined,
           durationMs: durationMs ?? state.lastPlayerInfo.durationMs
         }
         sendResponse(response)

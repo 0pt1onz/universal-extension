@@ -33,7 +33,8 @@ export async function extractGeneric(
       typeHint = typeParam
     }
 
-    const idParam = params.get("id") || params.get("tmdb_id") || params.get("tmdbId")
+    const idParam =
+      params.get("id") || params.get("tmdb_id") || params.get("tmdbId")
     if (!tmdb_id && idParam && /^\d+$/.test(idParam)) {
       tmdb_id = parseInt(idParam, 10)
     }
