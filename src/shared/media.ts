@@ -27,5 +27,6 @@ export interface PlayerInfoMessage {
   season?: number
   episode?: number
   currentTime?: number
+  durationMs?: number
   playerAvailable?: boolean
 }

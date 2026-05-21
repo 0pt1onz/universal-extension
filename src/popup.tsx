@@ -57,6 +57,7 @@ function IndexPopup() {
   const [episode, setEpisode] = useState("")
   const [startSec, setStartSec] = useState("")
   const [endSec, setEndSec] = useState("")
+  const [videoDuration, setVideoDuration] = useState("")
   const [segment, setSegment] = useState<SegmentType>("intro")
   const [status, setStatus] = useState("")
   const [statusColor, setStatusColor] = useState("")
@@ -68,6 +69,7 @@ function IndexPopup() {
     useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const startSecRef = useRef(startSec)
+  const videoDurationRef = useRef(videoDuration)
   const trackedPopupMediaKeyRef = useRef<string | null>(null)
   const canSubmit = Number.isFinite(Number(tmdbId)) && Number(tmdbId) > 0
 
@@ -217,6 +219,13 @@ function IndexPopup() {
       setStartSec(formatTime(response.currentTime))
     }
 
+    if (
+      typeof response.durationMs === "number" &&
+      videoDurationRef.current.trim() === ""
+    ) {
+      setVideoDuration(formatTime(response.durationMs / 1000))
+    }
+
     setMediaTitle(response.title || "Detected")
 
     if (response.type === "tv") {
@@ -238,6 +247,10 @@ function IndexPopup() {
   useEffect(() => {
     startSecRef.current = startSec
   }, [startSec])
+
+  useEffect(() => {
+    videoDurationRef.current = videoDuration
+  }, [videoDuration])
 
   useEffect(() => {
     api.storage.local
@@ -308,12 +321,26 @@ function IndexPopup() {
           ? null
           : 0
         : parseTimeToSeconds(endSec)
+
+    const videoDurationSecValue =
+      videoDuration.trim() === "" ? null : parseTimeToSeconds(videoDuration)
+    const videoDurationMsValue =
+      typeof videoDurationSecValue === "number" &&
+      Number.isFinite(videoDurationSecValue) &&
+      videoDurationSecValue > 0
+        ? Math.round(videoDurationSecValue * 1000)
+        : null
+
     const payload: Record<string, unknown> = {
       tmdb_id: Number(tmdbId),
       type: mediaType,
       segment,
       start_sec: parseTimeToSeconds(startSec),
       end_sec: endSecValue
+    }
+
+    if (typeof videoDurationMsValue === "number") {
+      payload.video_duration_ms = videoDurationMsValue
     }
     if (mediaType === "tv") {
       payload.season = Number(season)
@@ -459,6 +486,8 @@ function IndexPopup() {
                 setStartSec={setStartSec}
                 endSec={endSec}
                 setEndSec={setEndSec}
+                videoDuration={videoDuration}
+                setVideoDuration={setVideoDuration}
                 onUsePlayerTimeForStart={handleUsePlayerTimeForStart}
                 onUsePlayerTimeForEnd={handleUsePlayerTimeForEnd}
                 status={status}

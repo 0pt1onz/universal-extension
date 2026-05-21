@@ -17,6 +17,8 @@ export interface MainPageProps {
   setStartSec: (v: string) => void
   endSec: string
   setEndSec: (v: string) => void
+  videoDuration: string
+  setVideoDuration: (v: string) => void
   onUsePlayerTimeForStart: () => void
   onUsePlayerTimeForEnd: () => void
   status: string
@@ -38,6 +40,8 @@ export function MainPage({
   setStartSec,
   endSec,
   setEndSec,
+  videoDuration,
+  setVideoDuration,
   onUsePlayerTimeForStart,
   onUsePlayerTimeForEnd,
   status,
@@ -124,6 +128,19 @@ export function MainPage({
             {t("popup.insertCurrentTime")}
           </button>
         </div>
+      </div>
+
+      <label className="block text-[9px] font-bold text-green-400 mb-1.5 uppercase tracking-[0.5px]">
+        {t("popup.videoDuration")}
+      </label>
+      <div className="mb-3">
+        <input
+          id="video_duration"
+          placeholder="2:00:00"
+          value={videoDuration}
+          onChange={(e) => setVideoDuration(e.target.value)}
+          className="w-full min-w-0 p-[11px] bg-[#151515] border border-white/[.08] rounded-4xl box-border text-white text-[13px]"
+        />
       </div>
 
       <button

@@ -49,6 +49,7 @@ interface DiscoveryRequest {
   episode?: number
   episode_id?: number
   year?: string
+  duration_ms?: number
 }
 
 const tmdbHeaders = {
@@ -141,8 +142,15 @@ async function handleDiscovery(
       headers.Authorization = `Bearer ${introdb_api_key}`
     }
 
+    const durationParam =
+      typeof data.duration_ms === "number" &&
+      Number.isFinite(data.duration_ms) &&
+      data.duration_ms > 0
+        ? `&duration_ms=${Math.round(data.duration_ms)}`
+        : ""
+
     const introRes = await fetch(
-      `${INTRODB_API_URL}/media?tmdb_id=${tmdbId}${data.isTV ? `&season=${sNum}&episode=${eNum}` : ""}`,
+      `${INTRODB_API_URL}/media?tmdb_id=${tmdbId}${data.isTV ? `&season=${sNum}&episode=${eNum}` : ""}${durationParam}`,
       { headers }
     )
 

@@ -2,7 +2,8 @@
   "popup": {
     "title": "Submit",
     "segment": "Segment",
-    "time": "Time (MM:SS)",
+    "time": "Time (MM:SS or HH:MM:SS)",
+    "videoDuration": "Video duration (MM:SS or HH:MM:SS)",
     "startTime": "Start Time",
     "endTime": "End Time",
     "insertCurrentTime": "Insert current time",

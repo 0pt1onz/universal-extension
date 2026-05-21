@@ -23,6 +23,32 @@ export async function extractGeneric(
   let imdb_id: string | null = null
   let season: number | null = null
   let episode: number | null = null
+  let typeHint: "tv" | "movie" | null = null
+
+  try {
+    const urlObj = new URL(url)
+    const params = urlObj.searchParams
+    const typeParam = params.get("type")?.toLowerCase()
+    if (typeParam === "tv" || typeParam === "movie") {
+      typeHint = typeParam
+    }
+
+    const idParam = params.get("id") || params.get("tmdb_id") || params.get("tmdbId")
+    if (!tmdb_id && idParam && /^\d+$/.test(idParam)) {
+      tmdb_id = parseInt(idParam, 10)
+    }
+
+    const seasonParam = params.get("season")
+    const episodeParam = params.get("episode")
+    if (seasonParam && /^\d+$/.test(seasonParam)) {
+      season = parseInt(seasonParam, 10)
+    }
+    if (episodeParam && /^\d+$/.test(episodeParam)) {
+      episode = parseInt(episodeParam, 10)
+    }
+  } catch {
+    // ignore
+  }
 
   // 1. Extract TMDB ID from URL
   const tmdbTvMatch = url.match(/\/tv\/(\d+)\/(\d+)\/(\d+)/i)
@@ -65,7 +91,9 @@ export async function extractGeneric(
 
   // 3. Determine media type
   const isTV =
-    season !== null || /\/tv\//i.test(url) || /tmdb-tv-\d+/i.test(url)
+    typeHint === "tv" ||
+    (typeHint !== "movie" &&
+      (season !== null || /\/tv\//i.test(url) || /tmdb-tv-\d+/i.test(url)))
   const type = isTV ? "tv" : "movie"
 
   // 4. Extract year from URL path first, then fall back to document

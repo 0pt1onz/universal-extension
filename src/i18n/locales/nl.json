@@ -2,7 +2,8 @@
   "popup": {
     "title": "Indienen",
     "segment": "Segment",
-    "time": "Tijd (MM:SS)",
+    "time": "Tijd (MM:SS of HH:MM:SS)",
+    "videoDuration": "Videoduur (MM:SS of HH:MM:SS)",
     "startTime": "Starttijd",
     "endTime": "Eindtijd",
     "insertCurrentTime": "Huidige tijd invoegen",

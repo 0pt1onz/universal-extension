@@ -2,7 +2,8 @@
   "popup": {
     "title": "Enviar",
     "segment": "Segmento",
-    "time": "Tiempo (MM:SS)",
+    "time": "Tiempo (MM:SS o HH:MM:SS)",
+    "videoDuration": "Duración del video (MM:SS o HH:MM:SS)",
     "startTime": "Tiempo inicial",
     "endTime": "Tiempo final",
     "insertCurrentTime": "Insertar tiempo actual",

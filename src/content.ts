@@ -47,6 +47,7 @@ interface LastPlayerInfo {
   type: MediaType
   season?: number
   episode?: number
+  durationMs?: number
 }
 
 interface ContentRuntimeState {
@@ -266,6 +267,16 @@ function getActiveVideo(): HTMLVideoElement | null {
   return videos.find((v) => !v.paused) || videos[0] || null
 }
 
+function getKnownDurationMs(video?: HTMLVideoElement | null) {
+  const durationSec = video?.duration
+  if (typeof durationSec !== "number" || !Number.isFinite(durationSec)) {
+    return undefined
+  }
+  if (durationSec <= 0) return undefined
+  const durationMs = Math.round(durationSec * 1000)
+  return Number.isFinite(durationMs) && durationMs > 0 ? durationMs : undefined
+}
+
 function createBtn(type: string, endMs: number) {
   if (state.skipButton) return
 
@@ -453,11 +464,14 @@ async function init() {
     resetPageState()
     state.inFlightMediaKey = mediaKey
 
+    const durationMs = getKnownDurationMs(video)
+
     const res = (await chrome.runtime.sendMessage({
       action: "resolveAndFetch",
       data: {
         ...ctx,
-        isTV: ctx.type === "tv"
+        isTV: ctx.type === "tv",
+        duration_ms: durationMs
       }
     })) as IntroResponse
     state.inFlightMediaKey = null
@@ -474,7 +488,8 @@ async function init() {
         tmdb_id: res.tmdb_id ?? ctx.tmdb_id,
         type: ctx.type,
         season: ctx.season,
-        episode: ctx.episode
+        episode: ctx.episode,
+        durationMs
       }
       state.activeMediaKey = mediaKey
 
@@ -547,12 +562,14 @@ chrome.runtime.onMessage.addListener(
     if (msg.action === "getPlayerInfo") {
       const video = getActiveVideo()
       const currentTime = video?.currentTime
+      const durationMs = getKnownDurationMs(video)
       if (state.lastPlayerInfo) {
         const response: PlayerInfoMessage = {
           ...state.lastPlayerInfo,
           available: true,
           playerAvailable: Boolean(video),
-          currentTime: typeof currentTime === "number" ? currentTime : undefined
+          currentTime: typeof currentTime === "number" ? currentTime : undefined,
+          durationMs: durationMs ?? state.lastPlayerInfo.durationMs
         }
         sendResponse(response)
       } else {
@@ -572,7 +589,8 @@ chrome.runtime.onMessage.addListener(
                 action: "resolveAndFetch",
                 data: {
                   ...ctx,
-                  isTV: ctx.type === "tv"
+                  isTV: ctx.type === "tv",
+                  duration_ms: durationMs
                 }
               })) as DiscoveryResponse
 
@@ -591,7 +609,8 @@ chrome.runtime.onMessage.addListener(
                 playerAvailable: Boolean(video),
                 reason: video ? undefined : "no_video",
                 currentTime:
-                  typeof currentTime === "number" ? currentTime : undefined
+                  typeof currentTime === "number" ? currentTime : undefined,
+                durationMs
               }
               sendResponse(response)
             } else {
