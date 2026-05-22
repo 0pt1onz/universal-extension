@@ -178,7 +178,7 @@ export async function extractGeneric(
     }
   }
 
-  // 8. Return raw data for further processing
+  // 9. Return raw data for further processing
   return {
     title: title || "Untitled",
     tmdb_id,
