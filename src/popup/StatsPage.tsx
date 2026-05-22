@@ -31,7 +31,8 @@ interface LocalSkipStats {
 }
 
 interface StatsState {
-  total_time_saved_ms: number
+  local_time_saved_ms: number
+  account_time_saved_ms: number
   segments_skipped: SegmentTotals
   time_saved_by_type_ms: SegmentTotals
   total_submissions: number
@@ -76,7 +77,8 @@ const normalizeUserSubmissions = (
 }
 
 const DEFAULT_STATS: StatsState = {
-  total_time_saved_ms: 0,
+  local_time_saved_ms: 0,
+  account_time_saved_ms: 0,
   segments_skipped: createEmptySegmentTotals(),
   time_saved_by_type_ms: createEmptySegmentTotals(),
   total_submissions: 0
@@ -118,7 +120,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
         }
 
         if (local) {
-          baseStats.total_time_saved_ms = getTotalSavedTime(
+          baseStats.local_time_saved_ms = getTotalSavedTime(
             local.time_saved_by_type_ms
           )
           baseStats.segments_skipped = mergeSegmentTotals(
@@ -150,7 +152,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
             } else {
               const tsMs = userData.total_time_saved_ms
               if (typeof tsMs === "number" && tsMs >= 0) {
-                baseStats.total_time_saved_ms = tsMs
+                baseStats.account_time_saved_ms = tsMs
               }
 
               baseStats.userSubmissions = normalizeUserSubmissions(userData)
@@ -176,6 +178,11 @@ const StatsPage: React.FC<StatsPageProps> = ({
     return `${h > 0 ? h + t("time.hours") + " " : ""}${m > 0 ? m + t("time.minutes") + " " : ""}${s}${t("time.seconds")}`
   }
 
+  const totalSegmentsSkipped = Object.values(stats.segments_skipped).reduce(
+    (total, value) => total + value,
+    0
+  )
+
   if (loading)
     return (
       <div className="text-gray-400 text-center rounded-4xl">
@@ -190,16 +197,19 @@ const StatsPage: React.FC<StatsPageProps> = ({
       </h3>
 
       <div className="my-2.5">
-        <strong>{t("popup.personalTimeSaved")}:</strong>
-        <span className="text-green-400 ml-2.5">
-          {formatDuration(stats.total_time_saved_ms)}
-        </span>
-      </div>
-
-      <div className="my-2.5">
         <h4 className="m-0 mb-2.5 text-sm text-gray-400">
           {t("popup.segmentsSkipped")}
         </h4>
+        <div className="flex justify-between mb-1">
+          <span>{t("popup.total")}:</span>
+          <span className="text-green-400">{totalSegmentsSkipped}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>{t("popup.personalTimeSaved")}:</span>
+          <span className="text-green-400">
+            {formatDuration(stats.local_time_saved_ms)}
+          </span>
+        </div>
         {Object.entries(stats.segments_skipped).map(([key, val]) => (
           <div key={key} className="flex justify-between mb-1">
             <span className="capitalize">{t(`segments.${key}`)}:</span>
@@ -217,6 +227,12 @@ const StatsPage: React.FC<StatsPageProps> = ({
             <span>{t("popup.total")}:</span>
             <span className="text-green-400">
               {stats.userSubmissions.total.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex justify-between mb-1">
+            <span>{t("popup.totalTimeSaved")}:</span>
+            <span className="text-green-400">
+              {formatDuration(stats.account_time_saved_ms)}
             </span>
           </div>
           <div className="flex justify-between mb-1">
