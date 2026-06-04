@@ -23,6 +23,7 @@ export async function extractGeneric(
   let imdb_id: string | null = null
   let season: number | null = null
   let episode: number | null = null
+  let episode_id: number | null = null
   let typeHint: "tv" | "movie" | null = null
 
   try {
@@ -47,6 +48,15 @@ export async function extractGeneric(
     if (episodeParam && /^\d+$/.test(episodeParam)) {
       episode = parseInt(episodeParam, 10)
     }
+
+    const sParam = params.get("s")
+    const eParam = params.get("e")
+    if (season === null && sParam && /^\d+$/.test(sParam)) {
+      season = parseInt(sParam, 10)
+    }
+    if (episode === null && eParam && /^\d+$/.test(eParam)) {
+      episode = parseInt(eParam, 10)
+    }
   } catch {
     // ignore
   }
@@ -67,6 +77,22 @@ export async function extractGeneric(
   }
 
   if (!tmdb_id) {
+    // /media/tmdb-tv-{id}-{slug}/{season_or_id}/{episode_or_id}
+    const mediaTvMatch = url.match(
+      /\/media\/tmdb-tv-(\d+)-[^/]+\/(\d+)\/(\d+)/i
+    )
+    if (mediaTvMatch) {
+      tmdb_id = parseInt(mediaTvMatch[1], 10)
+      const sVal = parseInt(mediaTvMatch[2], 10)
+      const eVal = parseInt(mediaTvMatch[3], 10)
+      if (sVal > 100 && eVal > 1000) {
+        episode_id = eVal
+      } else {
+        season = sVal
+        episode = eVal
+      }
+    }
+
     const genericMatch = url.match(/\/(tv|movie)\/(\d+)/i)
     const tmdbUrlMatch = url.match(/tmdb[/-](\d+)/i)
     const idMatch = genericMatch || tmdbUrlMatch
@@ -186,7 +212,7 @@ export async function extractGeneric(
     type,
     season: season || (isTV ? 1 : null),
     episode: episode || (isTV ? 1 : null),
-    episode_id: null,
+    episode_id,
     currentTime,
     year: extractedYear
   }

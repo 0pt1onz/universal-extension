@@ -124,6 +124,26 @@ async function handleDiscovery(
       tmdbResult = await res.json()
     }
 
+    // Resolve TMDB episode ID to season/episode numbers
+    if (data.episode_id != null && (data.season == null || data.episode == null)) {
+      try {
+        const epRes = await fetch(
+          `https://api.themoviedb.org/3/tv/episode/${data.episode_id}`,
+          { headers: tmdbHeaders }
+        )
+        if (epRes.ok) {
+          const epData = await epRes.json()
+          data.season = epData.season_number
+          data.episode = epData.episode_number
+          if (!tmdbId && epData.show_id) {
+            tmdbId = epData.show_id
+          }
+        }
+      } catch {
+        // ignore resolution errors
+      }
+    }
+
     const sNum = data.season ?? 1
     const eNum = data.episode ?? 1
 
