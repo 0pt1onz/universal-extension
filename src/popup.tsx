@@ -68,6 +68,7 @@ function IndexPopup() {
   const [anonymousUsageReportingEnabled, setAnonymousUsageReportingEnabled] =
     useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isAuthorized, setIsAuthorized] = useState(false)
   const startSecRef = useRef(startSec)
   const videoDurationRef = useRef(videoDuration)
   const trackedPopupMediaKeyRef = useRef<string | null>(null)
@@ -251,6 +252,9 @@ function IndexPopup() {
     videoDurationRef.current = videoDuration
   }, [videoDuration])
 
+  const loadPlayerInfoRef = useRef(loadPlayerInfo)
+  loadPlayerInfoRef.current = loadPlayerInfo
+
   useEffect(() => {
     api.storage.local
       .get(["introdb_api_key", "error", ANALYTICS_STORAGE_KEY])
@@ -260,6 +264,7 @@ function IndexPopup() {
           typeof introdb_api_key === "string" ? introdb_api_key : ""
 
         setApiKeyInput(storedApiKey)
+        setIsAuthorized(storedApiKey.length > 0)
         setAnonymousUsageReportingEnabled(
           normalizeAnalyticsEnabled(storage[ANALYTICS_STORAGE_KEY])
         )
@@ -275,23 +280,24 @@ function IndexPopup() {
         }
 
         if (storedApiKey) {
-          await loadPlayerInfo()
+          await loadPlayerInfoRef.current()
         }
       })
-  }, [loadPlayerInfo, t])
+  }, [t])
 
   useEffect(() => {
-    if (!hasApiKey) return
+    if (!isAuthorized) return
     const id = setInterval(() => {
       loadPlayerInfo()
     }, POLL_INTERVAL_MS)
     return () => clearInterval(id)
-  }, [hasApiKey, loadPlayerInfo])
+  }, [isAuthorized, loadPlayerInfo])
 
   async function handleSaveKey() {
     const key = apiKeyInput.trim()
     if (key) {
       await api.storage.local.set({ introdb_api_key: key })
+      setIsAuthorized(true)
       track("connect_click", currentMediaProps())
       setActiveTab("submit")
       await loadPlayerInfo()
@@ -378,6 +384,7 @@ function IndexPopup() {
 
   async function handleDisconnect() {
     await api.storage.local.remove("introdb_api_key")
+    setIsAuthorized(false)
     track("disconnect_click", currentMediaProps())
     setApiKeyInput("")
     setStatus("")
@@ -448,7 +455,7 @@ function IndexPopup() {
           <div className="box-border w-full overflow-hidden bg-gray-900/60 p-[18px] rounded-4xl border border-white/[.08] shadow-[0_15px_35px_rgba(0,0,0,0.6)]">
             {activeTab === "submit" && (
               <>
-                {!hasApiKey && (
+                {!isAuthorized && (
                   <p className="text-xs text-gray-400 font-bold mb-4 leading-relaxed">
                     {t("setup.description1")}
                     <br />
@@ -456,7 +463,7 @@ function IndexPopup() {
                     {t("setup.description2")}
                   </p>
                 )}
-                {hasApiKey ? (
+                {isAuthorized ? (
                   <MainPage
                     notice={notice}
                     mediaTitle={mediaTitle}
