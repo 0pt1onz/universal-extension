@@ -9,7 +9,6 @@
     "insertCurrentTime": "Insert current time",
     "submit": "Submit",
     "disconnectToken": "Disconnect Token",
-    "apiKey": "API Key",
     "enterApiKey": "Enter your API key",
     "authorize": "Authorize",
     "yourStatistics": "Your Statistics",
@@ -20,7 +19,7 @@
     "total": "Total",
     "accepted": "Accepted",
     "pending": "Pending",
-    "acceptanceRate": "Acceptance rate",
+    "acceptanceRate": "Rate",
     "currentStreak": "Current streak",
     "bestStreak": "Best streak",
     "communitySubmissions": "Community Submissions",
@@ -35,10 +34,10 @@
   },
   "content": {
     "skipButton": {
-      "intro": "SKIP INTRO",
-      "recap": "SKIP RECAP",
-      "credits": "SKIP CREDITS",
-      "preview": "SKIP PREVIEW"
+      "intro": "Skip Intro",
+      "recap": "Skip Recap",
+      "credits": "Skip Credits",
+      "preview": "Skip Preview"
     }
   },
   "errors": {

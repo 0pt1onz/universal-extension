@@ -1,5 +1,9 @@
 import type { MediaContext } from "./types"
-import { parseSeasonEpisodeFromBody, extractMetaTitle, getFirstBodyLine } from "./utils"
+import {
+  extractMetaTitle,
+  getFirstBodyLine,
+  parseSeasonEpisodeFromBody
+} from "./utils"
 
 const RAKUTEN_TV_PLAYER_URL =
   /^https?:\/\/(www\.)?rakuten\.tv\/[a-z]{2}\/player\/(movies|series)\/stream\/[a-z0-9-]+/i

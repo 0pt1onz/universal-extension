@@ -1,5 +1,8 @@
 import { useTranslation } from "react-i18next"
 
+import { Button } from "~components/ui/Button"
+import { Input } from "~components/ui/Input"
+
 interface SetupPageProps {
   apiKey: string
   onApiKeyChange: (value: string) => void
@@ -15,23 +18,24 @@ export function SetupPage({
 
   return (
     <div>
-      <label className="block text-[10px] font-bold text-green-400 mb-2.5 uppercase tracking-[0.5px]">
-        {t("popup.apiKey")}
-      </label>
-      <input
-        id="api-key-input"
-        type="password"
-        placeholder={t("popup.enterApiKey")}
-        value={apiKey}
-        onChange={(event) => onApiKeyChange(event.target.value)}
-        className="w-full min-w-0 p-[11px] bg-[#151515] border border-white/[.08] rounded-4xl box-border text-white text-[13px] mb-3"
-      />
-      <button
-        type="button"
-        onClick={onSaveKey}
-        className="border-gradient-pill p-3.5 w-full cursor-pointer font-bold uppercase text-[11px] tracking-[1px] text-green-400 hover:text-green-400 border-green-400/30">
-        {t("popup.authorize")}
-      </button>
+      <div className="flex items-center gap-4 justify-center">
+        <Input
+          id="api-key-input"
+          type="password"
+          placeholder={t("popup.enterApiKey")}
+          value={apiKey}
+          onChange={(event) => onApiKeyChange(event.target.value)}
+          className="text-sm px-3 py-2"
+        />
+        <Button
+          type="button"
+          variant="glass"
+          size="sm"
+          onClick={onSaveKey}
+          className="w-full text-green-400 hover:text-green-400 bg-green-400/10 border-green-400/30">
+          {t("popup.authorize")}
+        </Button>
+      </div>
     </div>
   )
 }

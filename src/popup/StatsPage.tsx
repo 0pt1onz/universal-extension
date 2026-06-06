@@ -84,6 +84,26 @@ const DEFAULT_STATS: StatsState = {
   total_submissions: 0
 }
 
+function StatCard({
+  label,
+  value,
+  loading
+}: {
+  label: string
+  value: string | number
+  loading?: boolean
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <div className="text-[9px] font-bold text-gray-400">{label}</div>
+      <div
+        className={`text-lg font-bold ${loading ? "text-gray-600" : "text-white"}`}>
+        {loading ? "---" : value}
+      </div>
+    </div>
+  )
+}
+
 const StatsPage: React.FC<StatsPageProps> = ({
   anonymousUsageReportingEnabled,
   onAnonymousUsageReportingChange
@@ -183,105 +203,77 @@ const StatsPage: React.FC<StatsPageProps> = ({
     0
   )
 
-  if (loading)
-    return (
-      <div className="text-gray-400 text-center rounded-4xl">
-        {t("popup.loading")}
-      </div>
-    )
-
   return (
     <div className="text-gray-200 font-sans">
-      <h3 className="text-green-400 border-b border-gray-700">
-        {t("popup.yourStatistics")}
-      </h3>
-
-      <div className="my-2.5">
-        <h4 className="m-0 mb-2.5 text-sm text-gray-400">
+      <div className="flex flex-col gap-2">
+        <div className="text-xs font-bold text-white">
           {t("popup.segmentsSkipped")}
-        </h4>
-        <div className="flex justify-between mb-1">
-          <span>{t("popup.total")}:</span>
-          <span className="text-green-400">{totalSegmentsSkipped}</span>
         </div>
-        <div className="flex justify-between mb-2">
-          <span>{t("popup.personalTimeSaved")}:</span>
-          <span className="text-green-400">
-            {formatDuration(stats.local_time_saved_ms)}
-          </span>
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard
+            label={t("popup.total")}
+            value={totalSegmentsSkipped}
+            loading={loading}
+          />
+          <StatCard
+            label={t("popup.personalTimeSaved")}
+            value={formatDuration(stats.local_time_saved_ms)}
+            loading={loading}
+          />
         </div>
-        {Object.entries(stats.segments_skipped).map(([key, val]) => (
-          <div key={key} className="flex justify-between mb-1">
-            <span className="capitalize">{t(`segments.${key}`)}:</span>
-            <span className="text-green-400">{val}</span>
-          </div>
-        ))}
+        <div className="grid grid-cols-3 gap-2">
+          {TRACKED_SEGMENT_TYPES.map((key) => (
+            <StatCard
+              key={key}
+              label={t(`segments.${key}`)}
+              value={stats.segments_skipped[key]}
+              loading={loading}
+            />
+          ))}
+        </div>
       </div>
 
       {stats.userSubmissions && (
-        <div className="mt-2.5">
-          <h4 className="m-0 mb-2.5 text-sm text-gray-400">
+        <div className="mt-4">
+          <div className="text-xs font-bold text-white mb-2">
             {t("popup.yourSubmissions")}
-          </h4>
-          <div className="flex justify-between mb-1">
-            <span>{t("popup.total")}:</span>
-            <span className="text-green-400">
-              {stats.userSubmissions.total.toLocaleString()}
-            </span>
           </div>
-          <div className="flex justify-between mb-1">
-            <span>{t("popup.totalTimeSaved")}:</span>
-            <span className="text-green-400">
-              {formatDuration(stats.account_time_saved_ms)}
-            </span>
-          </div>
-          <div className="flex justify-between mb-1">
-            <span>{t("popup.accepted")}:</span>
-            <span className="text-green-400">
-              {stats.userSubmissions.accepted.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex justify-between mb-1">
-            <span>{t("popup.pending")}:</span>
-            <span className="text-green-400">
-              {stats.userSubmissions.pending.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex justify-between mb-1">
-            <span>{t("popup.acceptanceRate")}:</span>
-            <span className="text-green-400">
-              {stats.userSubmissions.acceptance_rate.toFixed(1)}%
-            </span>
-          </div>
-          <div className="flex justify-between mb-1">
-            <span>{t("popup.currentStreak")}:</span>
-            <span className="text-green-400">
-              {stats.userSubmissions.current_streak}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>{t("popup.bestStreak")}:</span>
-            <span className="text-green-400">
-              {stats.userSubmissions.best_streak}
-            </span>
+          <div className="grid grid-cols-3 gap-2">
+            <StatCard
+              label={t("popup.total")}
+              value={stats.userSubmissions.total.toLocaleString()}
+            />
+            <StatCard
+              label={t("popup.accepted")}
+              value={stats.userSubmissions.accepted.toLocaleString()}
+            />
+            <StatCard
+              label={t("popup.pending")}
+              value={stats.userSubmissions.pending.toLocaleString()}
+            />
+            <StatCard
+              label={t("popup.acceptanceRate")}
+              value={`${stats.userSubmissions.acceptance_rate.toFixed(1)}%`}
+            />
+            <StatCard
+              label={t("popup.currentStreak")}
+              value={stats.userSubmissions.current_streak}
+            />
+            <StatCard
+              label={t("popup.bestStreak")}
+              value={stats.userSubmissions.best_streak}
+            />
           </div>
         </div>
       )}
 
-      <div className="mt-3.5 text-[13px] text-gray-400">
-        {t("popup.communitySubmissions")}:{" "}
-        <span className="text-green-400">
-          {stats.total_submissions.toLocaleString()}
-        </span>
-      </div>
-
       {apiKeyError && (
-        <div className="mt-3 p-2.5 bg-red-500/10 border border-red-500/40 rounded-xl text-xs text-red-300">
+        <div className="mt-3 p-2.5 bg-red-500/10 border border-red-500/40 rounded-2xl text-xs text-red-300">
           {apiKeyError}
         </div>
       )}
 
-      <div className="mt-4 pt-3 border-t border-gray-800">
+      <div className="mt-4 pt-3">
         <label className="flex gap-2.5 items-start text-xs text-gray-300">
           <input
             type="checkbox"
@@ -289,7 +281,7 @@ const StatsPage: React.FC<StatsPageProps> = ({
             onChange={(event) =>
               onAnonymousUsageReportingChange(event.target.checked)
             }
-            className="mt-0.5"
+            className="mt-0.5 accent-green-400"
           />
           <span className="leading-snug">
             <span className="font-bold text-gray-200">

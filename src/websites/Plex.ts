@@ -1,5 +1,5 @@
 import type { MediaContext } from "./types"
-import { parseSeasonEpisodeFromBody, getFirstBodyLine } from "./utils"
+import { getFirstBodyLine, parseSeasonEpisodeFromBody } from "./utils"
 
 const PLEX_URL = /^https?:\/\/(app\.)?plex\.tv\//i
 

@@ -4,8 +4,9 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        "theintro-green": "#00ff88",
-        "green-400": "#34D399"
+        "dark-bg": "#0d0d0d",
+        "dark-card": "#000000",
+        "dark-input": "#0a0a0a"
       },
       borderRadius: {
         xl: "1rem",

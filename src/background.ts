@@ -125,7 +125,10 @@ async function handleDiscovery(
     }
 
     // Resolve TMDB episode ID to season/episode numbers
-    if (data.episode_id != null && (data.season == null || data.episode == null)) {
+    if (
+      data.episode_id != null &&
+      (data.season == null || data.episode == null)
+    ) {
       try {
         const epRes = await fetch(
           `https://api.themoviedb.org/3/tv/episode/${data.episode_id}`,

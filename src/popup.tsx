@@ -253,7 +253,9 @@ function IndexPopup() {
   }, [videoDuration])
 
   const loadPlayerInfoRef = useRef(loadPlayerInfo)
-  loadPlayerInfoRef.current = loadPlayerInfo
+  useEffect(() => {
+    loadPlayerInfoRef.current = loadPlayerInfo
+  })
 
   useEffect(() => {
     api.storage.local
@@ -418,7 +420,7 @@ function IndexPopup() {
     <>
       <ErrorDisplay message={errorMessage} />
 
-      <div className="box-border w-[480px] max-w-full m-0 p-0 overflow-hidden bg-gray-950 text-white font-ubuntu">
+      <div className="box-border w-[480px] max-w-full m-0 p-0 overflow-hidden bg-dark-bg text-white font-ubuntu">
         <div className="box-border w-full p-5 border-t-2 border-green-400">
           <div className="flex items-center justify-between mb-4">
             <a
@@ -429,11 +431,11 @@ function IndexPopup() {
             </a>
           </div>
 
-          <div className="flex border-b border-gray-700 mb-4">
+          <div className="flex">
             <button
               type="button"
               onClick={() => setActiveTab("submit")}
-              className={`flex-1 pb-2.5 text-xs font-bold uppercase tracking-[1px] transition-colors ${
+              className={`flex-1 pb-2.5 text-xs font-bold transition-colors ${
                 activeTab === "submit"
                   ? "text-green-400 border-b-2 border-green-400"
                   : "text-gray-500 hover:text-gray-300"
@@ -443,7 +445,7 @@ function IndexPopup() {
             <button
               type="button"
               onClick={() => setActiveTab("stats")}
-              className={`flex-1 pb-2.5 text-xs font-bold uppercase tracking-[1px] transition-colors ${
+              className={`flex-1 pb-2.5 text-xs font-bold transition-colors ${
                 activeTab === "stats"
                   ? "text-green-400 border-b-2 border-green-400"
                   : "text-gray-500 hover:text-gray-300"
@@ -452,16 +454,18 @@ function IndexPopup() {
             </button>
           </div>
 
-          <div className="box-border w-full overflow-hidden bg-gray-900/60 p-[18px] rounded-4xl border border-white/[.08] shadow-[0_15px_35px_rgba(0,0,0,0.6)]">
+          <div className="box-border w-full overflow-hidden bg-[var(--card)] p-4 mt-4 rounded-4xl border-white/5 border-2 shadow-[0_15px_35px_rgba(0,0,0,0.8)]">
             {activeTab === "submit" && (
               <>
                 {!isAuthorized && (
-                  <p className="text-xs text-gray-400 font-bold mb-4 leading-relaxed">
-                    {t("setup.description1")}
-                    <br />
-                    <br />
-                    {t("setup.description2")}
-                  </p>
+                  <div>
+                    <p className="text-sm text-white font-bold mb-2 leading-relaxed">
+                      {t("setup.description1")}
+                    </p>
+                    <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+                      {t("setup.description2")}
+                    </p>
+                  </div>
                 )}
                 {isAuthorized ? (
                   <MainPage
@@ -497,9 +501,7 @@ function IndexPopup() {
             )}
             {activeTab === "stats" && (
               <StatsPage
-                anonymousUsageReportingEnabled={
-                  anonymousUsageReportingEnabled
-                }
+                anonymousUsageReportingEnabled={anonymousUsageReportingEnabled}
                 onAnonymousUsageReportingChange={
                   handleAnonymousUsageReportingChange
                 }

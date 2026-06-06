@@ -63,7 +63,7 @@ export function Footer({ onVersionDoubleClick }: FooterProps) {
         className="inline-block text-xs text-gray-400 no-underline transition-colors duration-200 bg-transparent border-0 p-0 cursor-default">
         v{version}
       </button>
-      <label className="flex items-center text-xs text-gray-400">
+      <label className="flex items-center text-xs text-gray-400 gap-1">
         {isEnabled ? t("popup.enabled") : t("popup.disabled")}
         {hostname ? ` ${t("popup.on")} ${hostname}` : ""}
         <input

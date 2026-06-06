@@ -1,5 +1,9 @@
 import type { MediaContext } from "./types"
-import { parseSeasonEpisodeFromBody, extractMetaTitle, getFirstBodyLine } from "./utils"
+import {
+  extractMetaTitle,
+  getFirstBodyLine,
+  parseSeasonEpisodeFromBody
+} from "./utils"
 
 const HULU_URL = /^https?:\/\/(www\.)?hulu\.com\/(movie|series)\/[a-z0-9-]+/i
 
