@@ -9,6 +9,7 @@
     "insertCurrentTime": "Huidige tijd invoegen",
     "submit": "Indienen",
     "disconnectToken": "Token ontkoppelen",
+    "disconnectToast": "Token ontkoppeld",
     "apiKey": "API-sleutel",
     "enterApiKey": "Voer je API-sleutel in",
     "authorize": "Autoriseren",
@@ -31,7 +32,9 @@
     "github": "GitHub",
     "skippingUnavailableMediaFound": "Overslaan is hier niet beschikbaar, maar de media is gevonden en je kunt nog steeds handmatig segmenten indienen.",
     "anonymousUsageReporting": "Anonieme gebruiksrapportage",
-    "anonymousUsageReportingDescription": "Helpt de extensie te verbeteren door anonieme statistieken te verzenden (geen persoonlijke gegevens)."
+    "anonymousUsageReportingDescription": "Helpt de extensie te verbeteren door anonieme statistieken te verzenden (geen persoonlijke gegevens).",
+    "anonymousUsageReportingEnabledToast": "Gebruiksrapportage ingeschakeld",
+    "anonymousUsageReportingDisabledToast": "Gebruiksrapportage uitgeschakeld"
   },
   "content": {
     "skipButton": {
@@ -77,8 +80,20 @@
     "description1": "Je ontvangt skip-segmenten van TheIntroDB!",
     "description2": "Optioneel kun je je API-sleutel invoeren om nieuwe segmenten in te dienen en je nog openstaande segmenten te gebruiken."
   },
+  "settings": {
+    "language": "Taal",
+    "dangerZone": "Gevarenzone",
+    "skipButtonTheme": "Thema van de overslaan-knop",
+    "skipButtonThemeDescription": "Wijzig het kleurenschema van de overslaan-knop die op videospelers verschijnt.",
+    "resetToDefaults": "Standaardinstellingen herstellen",
+    "resetToDefaultsConfirm": "Alle instellingen terugzetten naar standaard?",
+    "resetToDefaultsToast": "Instellingen hersteld naar standaard",
+    "saveSettings": "Instellingen opslaan",
+    "settingsSavedToast": "Instellingen opgeslagen"
+  },
   "navigation": {
     "back": "Terug",
-    "stats": "Statistieken"
+    "stats": "Statistieken",
+    "settings": "Instellingen"
   }
 }

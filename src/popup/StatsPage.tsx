@@ -10,10 +10,7 @@ import { api, API_URL } from "./api"
 
 type SegmentTotals = Record<TrackableSegmentType, number>
 
-interface StatsPageProps {
-  anonymousUsageReportingEnabled: boolean
-  onAnonymousUsageReportingChange: (enabled: boolean) => void | Promise<void>
-}
+interface StatsPageProps {}
 
 interface UserSubmissionsState {
   total: number
@@ -104,10 +101,7 @@ function StatCard({
   )
 }
 
-const StatsPage: React.FC<StatsPageProps> = ({
-  anonymousUsageReportingEnabled,
-  onAnonymousUsageReportingChange
-}) => {
+const StatsPage: React.FC<StatsPageProps> = () => {
   const { t } = useTranslation()
   const [stats, setStats] = useState<StatsState>(DEFAULT_STATS)
   const [loading, setLoading] = useState(true)
@@ -273,26 +267,6 @@ const StatsPage: React.FC<StatsPageProps> = ({
         </div>
       )}
 
-      <div className="mt-4 pt-3">
-        <label className="flex gap-2.5 items-start text-xs text-gray-300">
-          <input
-            type="checkbox"
-            checked={anonymousUsageReportingEnabled}
-            onChange={(event) =>
-              onAnonymousUsageReportingChange(event.target.checked)
-            }
-            className="mt-0.5 accent-green-400"
-          />
-          <span className="leading-snug">
-            <span className="font-bold text-gray-200">
-              {t("popup.anonymousUsageReporting")}
-            </span>
-            <span className="block text-[11px] text-gray-400 mt-1">
-              {t("popup.anonymousUsageReportingDescription")}
-            </span>
-          </span>
-        </label>
-      </div>
     </div>
   )
 }

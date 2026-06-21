@@ -9,6 +9,7 @@
     "insertCurrentTime": "Aktuelle Zeit einfügen",
     "submit": "Einreichen",
     "disconnectToken": "Token trennen",
+    "disconnectToast": "Token getrennt",
     "apiKey": "API-Schlüssel",
     "enterApiKey": "Gib deinen API-Schlüssel ein",
     "authorize": "Autorisieren",
@@ -31,7 +32,9 @@
     "github": "GitHub",
     "skippingUnavailableMediaFound": "Überspringen ist hier nicht verfügbar, aber das Medium wurde gefunden und du kannst Segmente trotzdem manuell einreichen.",
     "anonymousUsageReporting": "Anonyme Nutzungsstatistiken",
-    "anonymousUsageReportingDescription": "Hilft, die Erweiterung zu verbessern, indem anonyme Analysedaten gesendet werden (keine personenbezogenen Daten)."
+    "anonymousUsageReportingDescription": "Hilft, die Erweiterung zu verbessern, indem anonyme Analysedaten gesendet werden (keine personenbezogenen Daten).",
+    "anonymousUsageReportingEnabledToast": "Nutzungsstatistiken aktiviert",
+    "anonymousUsageReportingDisabledToast": "Nutzungsstatistiken deaktiviert"
   },
   "content": {
     "skipButton": {
@@ -77,8 +80,20 @@
     "description1": "Du erhältst Skip-Segmente von TheIntroDB!",
     "description2": "Optional kannst du deinen API-Schlüssel eingeben, um neue Segmente einzureichen und deine noch ausstehenden Segmente zu verwenden!"
   },
+  "settings": {
+    "language": "Sprache",
+    "dangerZone": "Gefahrenzone",
+    "skipButtonTheme": "Design des Überspringen-Buttons",
+    "skipButtonThemeDescription": "Ändere das Farbschema des Überspringen-Buttons, der auf Videoplayern erscheint.",
+    "resetToDefaults": "Auf Standardeinstellungen zurücksetzen",
+    "resetToDefaultsConfirm": "Alle Einstellungen auf die Standardwerte zurücksetzen?",
+    "resetToDefaultsToast": "Einstellungen auf Standardwerte zurückgesetzt",
+    "saveSettings": "Einstellungen speichern",
+    "settingsSavedToast": "Einstellungen gespeichert"
+  },
   "navigation": {
     "back": "Zurück",
-    "stats": "Statistiken"
+    "stats": "Statistiken",
+    "settings": "Einstellungen"
   }
 }

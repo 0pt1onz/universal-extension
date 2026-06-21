@@ -26,6 +26,17 @@
   --font-geist-mono: "Ubuntu", monospace;
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @layer components {
   .border-gradient-pill {
     @apply bg-white/[0.02] rounded-4xl border border-white/[0.05] hover:bg-white/[0.05] hover:text-white shadow-[0_4px_20px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.02)] [&_svg]:opacity-70 hover:[&_svg]:opacity-100 [&_svg]:transition-all backdrop-blur-sm;

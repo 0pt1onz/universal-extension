@@ -82,8 +82,70 @@ const DEFAULT_INIT_DELAY_MS = 800
 const STORAGE_KEYS = {
   disabledSites: "disabled_sites",
   error: "error",
-  skipStats: "skipButtonStats"
+  skipStats: "skipButtonStats",
+  buttonTheme: "button_theme"
 } as const
+
+const BUTTON_THEMES = {
+  green: {
+    bg: "rgba(255, 255, 255, 0.05)",
+    bgHover: "rgba(255, 255, 255, 0.1)",
+    color: "#34D399",
+    colorHover: "#ffffff",
+    borderColor: "rgba(255, 255, 255, 0.1)"
+  },
+  blue: {
+    bg: "rgba(59, 130, 246, 0.1)",
+    bgHover: "rgba(59, 130, 246, 0.2)",
+    color: "#60A5FA",
+    colorHover: "#ffffff",
+    borderColor: "rgba(59, 130, 246, 0.3)"
+  },
+  purple: {
+    bg: "rgba(168, 85, 247, 0.1)",
+    bgHover: "rgba(168, 85, 247, 0.2)",
+    color: "#C084FC",
+    colorHover: "#ffffff",
+    borderColor: "rgba(168, 85, 247, 0.3)"
+  },
+  white: {
+    bg: "rgba(255, 255, 255, 0.05)",
+    bgHover: "rgba(255, 255, 255, 0.15)",
+    color: "#ffffff",
+    colorHover: "#ffffff",
+    borderColor: "rgba(255, 255, 255, 0.15)"
+  },
+  red: {
+    bg: "rgba(239, 68, 68, 0.1)",
+    bgHover: "rgba(239, 68, 68, 0.2)",
+    color: "#F87171",
+    colorHover: "#ffffff",
+    borderColor: "rgba(239, 68, 68, 0.3)"
+  },
+  orange: {
+    bg: "rgba(249, 115, 22, 0.1)",
+    bgHover: "rgba(249, 115, 22, 0.2)",
+    color: "#FB923C",
+    colorHover: "#ffffff",
+    borderColor: "rgba(249, 115, 22, 0.3)"
+  },
+  cyan: {
+    bg: "rgba(6, 182, 212, 0.1)",
+    bgHover: "rgba(6, 182, 212, 0.2)",
+    color: "#22D3EE",
+    colorHover: "#ffffff",
+    borderColor: "rgba(6, 182, 212, 0.3)"
+  },
+  pink: {
+    bg: "rgba(236, 72, 153, 0.1)",
+    bgHover: "rgba(236, 72, 153, 0.2)",
+    color: "#F472B6",
+    colorHover: "#ffffff",
+    borderColor: "rgba(236, 72, 153, 0.3)"
+  }
+} as const
+
+type ButtonTheme = keyof typeof BUTTON_THEMES
 
 const state: ContentRuntimeState = {
   activeSegments: null,
@@ -335,24 +397,41 @@ function getKnownDurationMs(video?: HTMLVideoElement | null) {
   return Number.isFinite(durationMs) && durationMs > 0 ? durationMs : undefined
 }
 
+function applyButtonTheme(
+  theme: (typeof BUTTON_THEMES)[keyof typeof BUTTON_THEMES]
+) {
+  if (!state.skipButton) return
+
+  // Update only visual styles — no cloning, no event listener manipulation.
+  // Event handlers read from data attributes set here.
+  Object.assign(state.skipButton.style, {
+    backgroundColor: theme.bg,
+    color: theme.color,
+    border: `1px solid ${theme.borderColor}`
+  })
+
+  state.skipButton.dataset.themeBg = theme.bg
+  state.skipButton.dataset.themeBgHover = theme.bgHover
+  state.skipButton.dataset.themeColor = theme.color
+  state.skipButton.dataset.themeColorHover = theme.colorHover
+}
+
 function createBtn(type: string, endMs: number) {
   if (state.skipButton) return
 
   state.skipButton = document.createElement("button")
   state.skipButton.innerHTML = `${i18next.t(`content.skipButton.${type}`)} <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-skip-forward"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`
 
+  // Apply static layout styles once (these never change)
   Object.assign(state.skipButton.style, {
     position: "fixed",
     right: "40px",
     bottom: "130px",
     padding: "10px 20px",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    color: "#34D399",
     zIndex: "2147483647",
     fontWeight: "500",
     borderRadius: "9999px",
     cursor: "pointer",
-    border: "1px solid rgba(255, 255, 255, 0.1)",
     outline: "none",
     boxShadow:
       "0 4px 20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.02)",
@@ -365,18 +444,18 @@ function createBtn(type: string, endMs: number) {
     gap: "8px"
   })
 
-  state.skipButton.addEventListener("mouseenter", () => {
-    if (!state.skipButton) return
-    state.skipButton.style.backgroundColor = "rgba(255, 255, 255, 0.1)"
-    state.skipButton.style.color = "#ffffff"
+  // Apply default theme (green) — will be overridden by storage read
+  applyButtonTheme(BUTTON_THEMES.green)
+
+  // Read stored theme asynchronously and override
+  chrome.storage.local.get([STORAGE_KEYS.buttonTheme]).then((storage) => {
+    const themeKey =
+      (storage[STORAGE_KEYS.buttonTheme] as ButtonTheme) || "green"
+    const theme = BUTTON_THEMES[themeKey] || BUTTON_THEMES.green
+    applyButtonTheme(theme)
   })
 
-  state.skipButton.addEventListener("mouseleave", () => {
-    if (!state.skipButton) return
-    state.skipButton.style.backgroundColor = "rgba(255, 255, 255, 0.05)"
-    state.skipButton.style.color = "#34D399"
-  })
-
+  // Click handler — closes over type/endMs from createBtn parameters
   state.skipButton.onclick = async (e) => {
     e.preventDefault()
     e.stopImmediatePropagation()
@@ -406,6 +485,23 @@ function createBtn(type: string, endMs: number) {
     state.skipButton?.remove()
     state.skipButton = null
   }
+
+  // Hover handlers — added once, read current theme from data attributes
+  state.skipButton.addEventListener("mouseenter", () => {
+    if (!state.skipButton) return
+    state.skipButton.style.backgroundColor =
+      state.skipButton.dataset.themeBgHover || BUTTON_THEMES.green.bgHover
+    state.skipButton.style.color =
+      state.skipButton.dataset.themeColorHover || BUTTON_THEMES.green.colorHover
+  })
+
+  state.skipButton.addEventListener("mouseleave", () => {
+    if (!state.skipButton) return
+    state.skipButton.style.backgroundColor =
+      state.skipButton.dataset.themeBg || BUTTON_THEMES.green.bg
+    state.skipButton.style.color =
+      state.skipButton.dataset.themeColor || BUTTON_THEMES.green.color
+  })
 
   document.body.appendChild(state.skipButton)
 }
@@ -595,6 +691,17 @@ async function init() {
     state.initRunning = false
   }
 }
+
+// Listen for live theme changes from the settings page
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes[STORAGE_KEYS.buttonTheme]) {
+    const themeKey = changes[STORAGE_KEYS.buttonTheme].newValue as ButtonTheme
+    const theme = BUTTON_THEMES[themeKey]
+    if (theme && state.skipButton) {
+      applyButtonTheme(theme)
+    }
+  }
+})
 
 chrome.runtime.onMessage.addListener(
   (msg: { action: string }, _sender, sendResponse: (r: unknown) => void) => {

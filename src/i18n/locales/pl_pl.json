@@ -9,6 +9,7 @@
     "insertCurrentTime": "Wstaw bieżący czas",
     "submit": "Wyślij",
     "disconnectToken": "Odłącz token",
+    "disconnectToast": "Token odłączony",
     "apiKey": "Klucz API",
     "enterApiKey": "Wpisz swój klucz API",
     "authorize": "Autoryzuj",
@@ -31,7 +32,9 @@
     "github": "GitHub",
     "skippingUnavailableMediaFound": "Pomijanie nie jest tutaj dostępne, ale multimedia zostały znalezione i nadal możesz ręcznie przesłać segmenty.",
     "anonymousUsageReporting": "Anonimowe raportowanie użycia",
-    "anonymousUsageReportingDescription": "Pomaga ulepszać rozszerzenie, wysyłając anonimowe statystyki (bez danych osobowych)."
+    "anonymousUsageReportingDescription": "Pomaga ulepszać rozszerzenie, wysyłając anonimowe statystyki (bez danych osobowych).",
+    "anonymousUsageReportingEnabledToast": "Raportowanie użycia włączone",
+    "anonymousUsageReportingDisabledToast": "Raportowanie użycia wyłączone"
   },
   "content": {
     "skipButton": {
@@ -77,8 +80,20 @@
     "description1": "Pobierasz segmenty pomijania z TheIntroDB!",
     "description2": "Opcjonalnie możesz wpisać swój klucz API, aby wysyłać nowe segmenty i pomijać treści z użyciem swoich oczekujących segmentów."
   },
+  "settings": {
+    "language": "Język",
+    "dangerZone": "Strefa niebezpieczeństwa",
+    "skipButtonTheme": "Motyw przycisku pomijania",
+    "skipButtonThemeDescription": "Zmień schemat kolorów przycisku pomijania, który pojawia się na odtwarzaczach wideo.",
+    "resetToDefaults": "Przywróć ustawienia domyślne",
+    "resetToDefaultsConfirm": "Przywrócić wszystkie ustawienia do domyślnych?",
+    "resetToDefaultsToast": "Ustawienia przywrócone do domyślnych",
+    "saveSettings": "Zapisz ustawienia",
+    "settingsSavedToast": "Ustawienia zapisane"
+  },
   "navigation": {
     "back": "Wstecz",
-    "stats": "Statystyki"
+    "stats": "Statystyki",
+    "settings": "Ustawienia"
   }
 }

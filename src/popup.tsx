@@ -9,18 +9,19 @@ import { api, API_URL } from "./popup/api"
 import { ErrorDisplay } from "./popup/ErrorDisplay"
 import { Footer } from "./popup/Footer"
 import { MainPage, type SegmentType } from "./popup/MainPage"
+import i18n from "./i18n/config"
+import { SettingsPage, BUTTON_THEME_STORAGE_KEY, type ButtonTheme } from "./popup/SettingsPage"
 import { SetupPage } from "./popup/SetupPage"
 import { StatsPage } from "./popup/StatsPage"
 import { formatSeconds, formatTime, parseTimeToSeconds } from "./popup/utils"
 import {
   ANALYTICS_STORAGE_KEY,
   normalizeAnalyticsEnabled,
-  trackAnalyticsEvent,
-  writeAnonymousUsageReportingEnabled
+  trackAnalyticsEvent
 } from "./shared/analytics"
 import type { MediaType, PlayerInfoMessage } from "./shared/media"
 
-type ActiveTab = "submit" | "stats"
+type ActiveTab = "submit" | "stats" | "settings"
 type PlayerInfoResponse = PlayerInfoMessage | null
 type ActiveTabPlayerInfoResult =
   | { state: "missing_tab"; response: null }
@@ -67,9 +68,14 @@ function IndexPopup() {
   const [apiKeyInput, setApiKeyInput] = useState("")
   const [anonymousUsageReportingEnabled, setAnonymousUsageReportingEnabled] =
     useState(true)
+  const [language, setLanguage] = useState("en")
+  const [buttonTheme, setButtonTheme] = useState<ButtonTheme>("green")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const startSecRef = useRef(startSec)
+  const previousAnalyticsEnabledRef = useRef(true)
   const videoDurationRef = useRef(videoDuration)
   const trackedPopupMediaKeyRef = useRef<string | null>(null)
   const hasApiKey = apiKeyInput.trim().length > 0
@@ -259,7 +265,7 @@ function IndexPopup() {
 
   useEffect(() => {
     api.storage.local
-      .get(["introdb_api_key", "error", ANALYTICS_STORAGE_KEY])
+      .get(["introdb_api_key", "error", ANALYTICS_STORAGE_KEY, BUTTON_THEME_STORAGE_KEY])
       .then(async (storage) => {
         const { introdb_api_key, error } = storage
         const storedApiKey =
@@ -267,9 +273,20 @@ function IndexPopup() {
 
         setApiKeyInput(storedApiKey)
         setIsAuthorized(storedApiKey.length > 0)
-        setAnonymousUsageReportingEnabled(
-          normalizeAnalyticsEnabled(storage[ANALYTICS_STORAGE_KEY])
+        const analyticsEnabled = normalizeAnalyticsEnabled(storage[ANALYTICS_STORAGE_KEY])
+        setAnonymousUsageReportingEnabled(analyticsEnabled)
+        previousAnalyticsEnabledRef.current = analyticsEnabled
+        setButtonTheme(
+          (storage[BUTTON_THEME_STORAGE_KEY] as ButtonTheme) || "green"
         )
+        const detectedLang =
+          ["de", "es", "nl", "pl"].find((code) => i18n.language?.startsWith(code)) || "en"
+        const storedLang =
+          typeof storage.language === "string" ? storage.language : detectedLang
+        if (storedLang !== i18n.language?.split("-")[0]) {
+          i18n.changeLanguage(storedLang)
+        }
+        setLanguage(storedLang)
 
         if (error && Date.now() - error.time < RECENT_ERROR_WINDOW_MS) {
           if (error.type === "rate_limited") {
@@ -286,6 +303,12 @@ function IndexPopup() {
         }
       })
   }, [t])
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isAuthorized) return
@@ -309,12 +332,51 @@ function IndexPopup() {
     }
   }
 
-  const handleAnonymousUsageReportingChange = async (enabled: boolean) => {
+  const handleSettingsAnalyticsChange = (enabled: boolean) => {
     setAnonymousUsageReportingEnabled(enabled)
-    await writeAnonymousUsageReportingEnabled(enabled)
-    if (enabled) {
+  }
+
+  const handleLanguageChange = (lang: string) => {
+    setLanguage(lang)
+  }
+
+  const handleButtonThemeChange = (theme: ButtonTheme) => {
+    setButtonTheme(theme)
+  }
+
+  const handleSaveSettings = async () => {
+    const analyticsWasEnabled = previousAnalyticsEnabledRef.current
+    await api.storage.local.set({
+      language,
+      [BUTTON_THEME_STORAGE_KEY]: buttonTheme,
+      [ANALYTICS_STORAGE_KEY]: anonymousUsageReportingEnabled
+    })
+    // Only track analytics_enabled when the state actually transitions from disabled → enabled
+    if (anonymousUsageReportingEnabled && !analyticsWasEnabled) {
       trackAnalyticsEvent("analytics_enabled")
     }
+    previousAnalyticsEnabledRef.current = anonymousUsageReportingEnabled
+    i18n.changeLanguage(language)
+    setToastMessage(t("settings.settingsSavedToast"))
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 3000)
+  }
+
+  const handleResetDefaults = async () => {
+    if (!window.confirm(t("settings.resetToDefaultsConfirm"))) return
+    setButtonTheme("green")
+    setAnonymousUsageReportingEnabled(true)
+    previousAnalyticsEnabledRef.current = true
+    setLanguage("en")
+    i18n.changeLanguage("en")
+    await api.storage.local.set({
+      [BUTTON_THEME_STORAGE_KEY]: "green",
+      [ANALYTICS_STORAGE_KEY]: true,
+      language: "en"
+    })
+    setToastMessage(t("settings.resetToDefaultsToast"))
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 3000)
   }
 
   async function handleSubmit() {
@@ -392,6 +454,9 @@ function IndexPopup() {
     setStatus("")
     setStatusColor("")
     setNotice("")
+    setToastMessage(t("popup.disconnectToast"))
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 3000)
   }
 
   const fetchCurrentPlayerTimeSec = async () => {
@@ -419,6 +484,15 @@ function IndexPopup() {
   return (
     <>
       <ErrorDisplay message={errorMessage} />
+
+      {/* Toast notification */}
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="bg-green-500/15 border border-green-500/30 text-green-400 text-xs font-medium px-4 py-2 rounded-2xl shadow-lg backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+            {toastMessage}
+          </div>
+        </div>
+      )}
 
       <div className="box-border w-[480px] max-w-full m-0 p-0 overflow-hidden bg-dark-bg text-white font-ubuntu">
         <div className="box-border w-full p-5 border-t-2 border-green-400">
@@ -451,6 +525,16 @@ function IndexPopup() {
                   : "text-gray-500 hover:text-gray-300"
               }`}>
               {t("navigation.stats")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("settings")}
+              className={`flex-1 pb-2.5 text-xs font-bold transition-colors ${
+                activeTab === "settings"
+                  ? "text-green-400 border-b-2 border-green-400"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}>
+              {t("navigation.settings")}
             </button>
           </div>
 
@@ -499,12 +583,19 @@ function IndexPopup() {
                 )}
               </>
             )}
-            {activeTab === "stats" && (
-              <StatsPage
+            {activeTab === "stats" && <StatsPage />}
+            {activeTab === "settings" && (
+              <SettingsPage
                 anonymousUsageReportingEnabled={anonymousUsageReportingEnabled}
                 onAnonymousUsageReportingChange={
-                  handleAnonymousUsageReportingChange
+                  handleSettingsAnalyticsChange
                 }
+                language={language}
+                onLanguageChange={handleLanguageChange}
+                buttonTheme={buttonTheme}
+                onButtonThemeChange={handleButtonThemeChange}
+                onSaveSettings={handleSaveSettings}
+                onResetDefaults={handleResetDefaults}
               />
             )}
           </div>

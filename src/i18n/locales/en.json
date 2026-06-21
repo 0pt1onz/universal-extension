@@ -9,6 +9,7 @@
     "insertCurrentTime": "Insert current time",
     "submit": "Submit",
     "disconnectToken": "Disconnect Token",
+    "disconnectToast": "Token disconnected",
     "enterApiKey": "Enter your API key",
     "authorize": "Authorize",
     "yourStatistics": "Your Statistics",
@@ -30,7 +31,9 @@
     "github": "Github",
     "skippingUnavailableMediaFound": "Skipping isn't available here, but the media was found and you can still submit segments manually.",
     "anonymousUsageReporting": "Anonymous usage reporting",
-    "anonymousUsageReportingDescription": "Helps improve the extension by sending anonymous analytics (no personal data)."
+    "anonymousUsageReportingDescription": "Helps improve the extension by sending anonymous analytics (no personal data).",
+    "anonymousUsageReportingEnabledToast": "Usage reporting enabled",
+    "anonymousUsageReportingDisabledToast": "Usage reporting disabled"
   },
   "content": {
     "skipButton": {
@@ -76,8 +79,20 @@
     "description1": "You're getting skip segments from TheIntroDB!",
     "description2": "Optionally, you can enter your API key to submit new segments and skip using your still pending segments!"
   },
+  "settings": {
+    "language": "Language",
+    "skipButtonTheme": "Skip button theme",
+    "skipButtonThemeDescription": "Change the color scheme of the skip button that appears on video players.",
+    "dangerZone": "Danger Zone",
+    "resetToDefaults": "Reset to defaults",
+    "resetToDefaultsConfirm": "Reset all settings to their defaults?",
+    "resetToDefaultsToast": "Settings reset to defaults",
+    "saveSettings": "Save Settings",
+    "settingsSavedToast": "Settings saved"
+  },
   "navigation": {
     "back": "Back",
-    "stats": "Stats"
+    "stats": "Stats",
+    "settings": "Settings"
   }
 }
