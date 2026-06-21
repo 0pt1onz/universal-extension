@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 0.625rem;
+  --background: #060606;
+  --foreground: #f9fafb;
+  --card: #0d0d0d;
+  --card-foreground: #f9fafb;
+  --popover: #0d0d0d;
+  --popover-foreground: #f9fafb;
+  --primary: #f9fafb;
+  --primary-foreground: #060606;
+  --primary-bg: #060905;
+  --secondary: #101010;
+  --secondary-foreground: #f9fafb;
+  --muted: #1b1b1b;
+  --muted-foreground: #9ca3af;
+  --accent: #1b1b1b;
+  --accent-foreground: #f9fafb;
+  --destructive: #ff6568;
+  --border: var(--color-zinc-800);
+  --ring: var(--color-zinc-700);
+  --font-geist-sans: "Ubuntu", Arial, Helvetica, sans-serif;
+  --font-geist-mono: "Ubuntu", monospace;
+}
+
+@layer components {
+  .border-gradient-pill {
+    @apply bg-white/[0.02] rounded-4xl border border-white/[0.05] hover:bg-white/[0.05] hover:text-white shadow-[0_4px_20px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.02)] [&_svg]:opacity-70 hover:[&_svg]:opacity-100 [&_svg]:transition-all backdrop-blur-sm;
+  }
+  .liquid-glass-button {
+    @apply border-gradient-pill text-gray-400 hover:text-white inline-flex items-center justify-center px-4 py-2 text-sm font-medium cursor-pointer transition-all duration-300 ease-in-out;
+  }
+  .back-button {
+    @apply text-gray-500;
+  }
+}

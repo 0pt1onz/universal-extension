@@ -1,0 +1,84 @@
+{
+  "popup": {
+    "title": "Einreichen",
+    "segment": "Segment",
+    "time": "Zeit (MM:SS oder HH:MM:SS)",
+    "videoDuration": "Videolänge (MM:SS oder HH:MM:SS)",
+    "startTime": "Startzeit",
+    "endTime": "Endzeit",
+    "insertCurrentTime": "Aktuelle Zeit einfügen",
+    "submit": "Einreichen",
+    "disconnectToken": "Token trennen",
+    "apiKey": "API-Schlüssel",
+    "enterApiKey": "Gib deinen API-Schlüssel ein",
+    "authorize": "Autorisieren",
+    "yourStatistics": "Deine Statistiken",
+    "personalTimeSaved": "Persönlich eingesparte Zeit",
+    "totalTimeSaved": "Insgesamt eingesparte Zeit",
+    "segmentsSkipped": "Übersprungene Segmente",
+    "yourSubmissions": "Deine Einsendungen",
+    "total": "Gesamt",
+    "accepted": "Akzeptiert",
+    "pending": "Ausstehend",
+    "acceptanceRate": "Akzeptanzrate",
+    "currentStreak": "Aktuelle Serie",
+    "bestStreak": "Beste Serie",
+    "communitySubmissions": "Einsendungen der Community",
+    "loading": "Lädt...",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert",
+    "on": "auf",
+    "github": "GitHub",
+    "skippingUnavailableMediaFound": "Überspringen ist hier nicht verfügbar, aber das Medium wurde gefunden und du kannst Segmente trotzdem manuell einreichen.",
+    "anonymousUsageReporting": "Anonyme Nutzungsstatistiken",
+    "anonymousUsageReportingDescription": "Hilft, die Erweiterung zu verbessern, indem anonyme Analysedaten gesendet werden (keine personenbezogenen Daten)."
+  },
+  "content": {
+    "skipButton": {
+      "intro": "INTRO ÜBERSPRINGEN",
+      "recap": "RÜCKBLICK ÜBERSPRINGEN",
+      "credits": "ABSPANN ÜBERSPRINGEN",
+      "preview": "VORSCHAU ÜBERSPRINGEN"
+    }
+  },
+  "errors": {
+    "apiKeyNotAccepted": "API-Schlüssel nicht akzeptiert. Prüfe den Schlüssel oder erstelle einen neuen auf theintrodb.org",
+    "couldNotLoadAccountStats": "Kontostatistiken konnten nicht geladen werden. Versuche es später erneut.",
+    "rateLimited": "Nutzungslimit erreicht. Versuche es in {{timeString}} erneut.",
+    "apiUnreachable": "Die API ist nicht erreichbar. Bitte versuche es später erneut.",
+    "cannotRunOnThisPage": "Kann auf dieser Seite nicht ausgeführt werden",
+    "refreshPageToSync": "Seite neu laden, um zu synchronisieren",
+    "notAvailableOnThisPage": "Auf dieser Seite nicht verfügbar",
+    "noHtmlVideoPlayerDetected": "Kein HTML-Videoplayer erkannt"
+  },
+  "segments": {
+    "intro": "Vorspann",
+    "recap": "Rückblick",
+    "credits": "Abspann",
+    "preview": "Vorschau"
+  },
+  "time": {
+    "hours": "h",
+    "minutes": "m",
+    "seconds": "s"
+  },
+  "status": {
+    "submitting": "Wird gesendet...",
+    "submittedSuccessfully": "Erfolgreich gesendet",
+    "connectionFailed": "Verbindung fehlgeschlagen"
+  },
+  "media": {
+    "season": "Staffel",
+    "episode": "Episode",
+    "tvSeries": "Fernsehserie",
+    "featureFilm": "Spielfilm"
+  },
+  "setup": {
+    "description1": "Du erhältst Skip-Segmente von TheIntroDB!",
+    "description2": "Optional kannst du deinen API-Schlüssel eingeben, um neue Segmente einzureichen und deine noch ausstehenden Segmente zu verwenden!"
+  },
+  "navigation": {
+    "back": "Zurück",
+    "stats": "Statistiken"
+  }
+}

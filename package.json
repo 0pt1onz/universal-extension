@@ -1,7 +1,7 @@
 {
   "name": "universal-extension",
   "displayName": "TheIntroDB",
-  "version": "1.1.0",
+  "version": "1.7.0",
   "description": "A browser extension that adds skip buttons for intros, recaps, credits, and previews on almost any site!",
   "author": "TheIntroDB",
   "scripts": {
@@ -13,29 +13,43 @@
     "package:firefox": "plasmo package --target=firefox-mv3",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@aptabase/browser": "^0.1.2",
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.40.0",
+    "i18next": "^26.2.0",
+    "i18next-browser-languagedetector": "^8.2.1",
+    "jiti": "1.21.0",
     "plasmo": "0.90.5",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "sharp": "^0.34.5"
+    "react-i18next": "^17.0.8",
+    "sharp": "^0.34.5",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@eslint/js": "^9.39.4",
     "@ianvs/prettier-plugin-sort-imports": "4.1.1",
     "@types/chrome": "0.0.258",
     "@types/node": "20.11.5",
     "@types/react": "18.2.48",
     "@types/react-dom": "18.2.18",
-    "eslint": "^9.39.2",
+    "autoprefixer": "^10.5.0",
+    "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "postcss": "^8.5.15",
     "prettier": "3.2.4",
+    "tailwindcss": "^3.4.19",
     "typescript": "5.3.3",
-    "typescript-eslint": "^8.54.0"
+    "typescript-eslint": "^8.59.4"
   },
   "manifest": {
     "browser_specific_settings": {
@@ -54,7 +68,8 @@
     ],
     "permissions": [
       "storage",
-      "activeTab"
+      "activeTab",
+      "management"
     ]
   }
 }

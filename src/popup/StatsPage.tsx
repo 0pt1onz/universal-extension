@@ -1,31 +1,114 @@
 import React, { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 
-import { api } from "./api"
+import {
+  TRACKED_SEGMENT_TYPES,
+  type TrackableSegmentType
+} from "~/shared/media"
+
+import { api, API_URL } from "./api"
+
+type SegmentTotals = Record<TrackableSegmentType, number>
+
+interface StatsPageProps {
+  anonymousUsageReportingEnabled: boolean
+  onAnonymousUsageReportingChange: (enabled: boolean) => void | Promise<void>
+}
+
+interface UserSubmissionsState {
+  total: number
+  accepted: number
+  pending: number
+  rejected: number
+  acceptance_rate: number
+  current_streak: number
+  best_streak: number
+}
+
+interface LocalSkipStats {
+  segments_skipped?: Partial<SegmentTotals>
+  time_saved_by_type_ms?: Partial<SegmentTotals>
+}
 
 interface StatsState {
-  total_time_saved_ms: number
-  segments_skipped: { intro: number; recap: number; credits: number }
-  time_saved_by_type_ms: { intro: number; recap: number; credits: number }
+  local_time_saved_ms: number
+  account_time_saved_ms: number
+  segments_skipped: SegmentTotals
+  time_saved_by_type_ms: SegmentTotals
   total_submissions: number
-  userSubmissions?: {
-    total: number
-    accepted: number
-    pending: number
-    rejected: number
-    acceptance_rate: number
-    current_streak: number
-    best_streak: number
+  userSubmissions?: UserSubmissionsState
+}
+
+const createEmptySegmentTotals = (): SegmentTotals => ({
+  intro: 0,
+  recap: 0,
+  credits: 0
+})
+
+const mergeSegmentTotals = (
+  values?: Partial<SegmentTotals>
+): SegmentTotals => ({
+  ...createEmptySegmentTotals(),
+  ...values
+})
+
+const getTotalSavedTime = (values: Partial<SegmentTotals> | undefined) =>
+  TRACKED_SEGMENT_TYPES.reduce(
+    (total, type) => total + Number(values?.[type] || 0),
+    0
+  )
+
+const normalizeUserSubmissions = (
+  data: Record<string, unknown>
+): UserSubmissionsState | undefined => {
+  if (typeof data.total !== "number" && typeof data.accepted !== "number") {
+    return undefined
+  }
+
+  return {
+    total: Number(data.total) || 0,
+    accepted: Number(data.accepted) || 0,
+    pending: Number(data.pending) || 0,
+    rejected: Number(data.rejected) || 0,
+    acceptance_rate: Number(data.acceptance_rate) || 0,
+    current_streak: Number(data.current_streak) || 0,
+    best_streak: Number(data.best_streak) || 0
   }
 }
 
 const DEFAULT_STATS: StatsState = {
-  total_time_saved_ms: 0,
-  segments_skipped: { intro: 0, recap: 0, credits: 0 },
-  time_saved_by_type_ms: { intro: 0, recap: 0, credits: 0 },
+  local_time_saved_ms: 0,
+  account_time_saved_ms: 0,
+  segments_skipped: createEmptySegmentTotals(),
+  time_saved_by_type_ms: createEmptySegmentTotals(),
   total_submissions: 0
 }
 
-const StatsPage: React.FC = () => {
+function StatCard({
+  label,
+  value,
+  loading
+}: {
+  label: string
+  value: string | number
+  loading?: boolean
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <div className="text-[9px] font-bold text-gray-400">{label}</div>
+      <div
+        className={`text-lg font-bold ${loading ? "text-gray-600" : "text-white"}`}>
+        {loading ? "---" : value}
+      </div>
+    </div>
+  )
+}
+
+const StatsPage: React.FC<StatsPageProps> = ({
+  anonymousUsageReportingEnabled,
+  onAnonymousUsageReportingChange
+}) => {
+  const { t } = useTranslation()
   const [stats, setStats] = useState<StatsState>(DEFAULT_STATS)
   const [loading, setLoading] = useState(true)
   const [apiKeyError, setApiKeyError] = useState<string | null>(null)
@@ -35,7 +118,7 @@ const StatsPage: React.FC = () => {
       try {
         let communityTotal = 0
         try {
-          const res = await fetch("https://api.theintrodb.org/v2/stats")
+          const res = await fetch(`${API_URL}/stats`)
           if (res.ok) {
             const data = await res.json()
             communityTotal = data.total_submissions || 0
@@ -48,7 +131,7 @@ const StatsPage: React.FC = () => {
           "skipButtonStats",
           "introdb_api_key"
         ])
-        const local = storage.skipButtonStats
+        const local = storage.skipButtonStats as LocalSkipStats | undefined
         const introdb_api_key = storage.introdb_api_key as string | undefined
 
         const baseStats: StatsState = {
@@ -57,58 +140,42 @@ const StatsPage: React.FC = () => {
         }
 
         if (local) {
-          const totalSaved =
-            (local.time_saved_by_type_ms?.intro || 0) +
-            (local.time_saved_by_type_ms?.recap || 0) +
-            (local.time_saved_by_type_ms?.credits || 0)
-          baseStats.total_time_saved_ms = totalSaved
-          baseStats.segments_skipped = { ...DEFAULT_STATS.segments_skipped, ...local.segments_skipped }
-          baseStats.time_saved_by_type_ms = { ...DEFAULT_STATS.time_saved_by_type_ms, ...local.time_saved_by_type_ms }
+          baseStats.local_time_saved_ms = getTotalSavedTime(
+            local.time_saved_by_type_ms
+          )
+          baseStats.segments_skipped = mergeSegmentTotals(
+            local.segments_skipped
+          )
+          baseStats.time_saved_by_type_ms = mergeSegmentTotals(
+            local.time_saved_by_type_ms
+          )
         }
 
         setApiKeyError(null)
         if (introdb_api_key?.trim()) {
           try {
-            const userRes = await fetch(
-              "https://api.theintrodb.org/v2/user/stats",
-              {
-                headers: {
-                  Authorization: `Bearer ${introdb_api_key.trim()}`
-                }
+            const userRes = await fetch(`${API_URL}/user/stats`, {
+              headers: {
+                Authorization: `Bearer ${introdb_api_key.trim()}`
               }
-            )
-            const userData = await userRes.json().catch(() => ({}))
+            })
+            const userData = (await userRes.json().catch(() => ({}))) as Record<
+              string,
+              unknown
+            >
             if (!userRes.ok) {
               if (userRes.status === 401) {
-                setApiKeyError(
-                  "API key not accepted. Check or regenerate key at theintrodb.org"
-                )
+                setApiKeyError(t("errors.apiKeyNotAccepted"))
               } else {
-                setApiKeyError(
-                  "Could not load account stats. Try again later."
-                )
+                setApiKeyError(t("errors.couldNotLoadAccountStats"))
               }
             } else {
               const tsMs = userData.total_time_saved_ms
               if (typeof tsMs === "number" && tsMs >= 0) {
-                baseStats.total_time_saved_ms = tsMs
+                baseStats.account_time_saved_ms = tsMs
               }
-              if (
-                typeof userData.total === "number" ||
-                typeof userData.accepted === "number"
-              ) {
-                baseStats.userSubmissions = {
-                  total: Number(userData.total) || 0,
-                  accepted: Number(userData.accepted) || 0,
-                  pending: Number(userData.pending) || 0,
-                  rejected: Number(userData.rejected) || 0,
-                  acceptance_rate:
-                    Number(userData.acceptance_rate) || 0,
-                  current_streak:
-                    Number(userData.current_streak) || 0,
-                  best_streak: Number(userData.best_streak) || 0
-                }
-              }
+
+              baseStats.userSubmissions = normalizeUserSubmissions(userData)
             }
           } catch (e) {
             console.error("User stats fetch failed", e)
@@ -121,158 +188,111 @@ const StatsPage: React.FC = () => {
       }
     }
     loadStats()
-  }, [])
+  }, [t])
 
   const formatDuration = (ms: number) => {
     const seconds = Math.floor(ms / 1000)
     const m = Math.floor((seconds % 3600) / 60)
     const h = Math.floor(seconds / 3600)
     const s = seconds % 60
-    return `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m " : ""}${s}s`
+    return `${h > 0 ? h + t("time.hours") + " " : ""}${m > 0 ? m + t("time.minutes") + " " : ""}${s}${t("time.seconds")}`
   }
 
-  if (loading)
-    return <div style={{ color: "#aaa", textAlign: "center" }}>Loading...</div>
+  const totalSegmentsSkipped = Object.values(stats.segments_skipped).reduce(
+    (total, value) => total + value,
+    0
+  )
 
   return (
-    <div
-      style={{ color: "#e0e0e0", fontFamily: "sans-serif", padding: "10px" }}>
-      <h3 style={{ color: "#00ff88", borderBottom: "1px solid #333" }}>
-        Your Statistics
-      </h3>
-
-      <div
-        style={{
-          background: "#1e1e1e",
-          padding: "10px",
-          borderRadius: "8px",
-          margin: "10px 0"
-        }}>
-        <strong>Personal Time Saved:</strong>
-        <span style={{ color: "#00ff88", marginLeft: "10px" }}>
-          {formatDuration(stats.total_time_saved_ms)}
-        </span>
-      </div>
-
-      <div
-        style={{ background: "#1e1e1e", padding: "10px", borderRadius: "8px" }}>
-        <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#888" }}>
-          Segments Skipped
-        </h4>
-        {Object.entries(stats.segments_skipped).map(([key, val]) => (
-          <div
-            key={key}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
-            <span style={{ textTransform: "capitalize" }}>{key}:</span>
-            <span style={{ color: "#00ff88" }}>{val}</span>
-          </div>
-        ))}
+    <div className="text-gray-200 font-sans">
+      <div className="flex flex-col gap-2">
+        <div className="text-xs font-bold text-white">
+          {t("popup.segmentsSkipped")}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard
+            label={t("popup.total")}
+            value={totalSegmentsSkipped}
+            loading={loading}
+          />
+          <StatCard
+            label={t("popup.personalTimeSaved")}
+            value={formatDuration(stats.local_time_saved_ms)}
+            loading={loading}
+          />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {TRACKED_SEGMENT_TYPES.map((key) => (
+            <StatCard
+              key={key}
+              label={t(`segments.${key}`)}
+              value={stats.segments_skipped[key]}
+              loading={loading}
+            />
+          ))}
+        </div>
       </div>
 
       {stats.userSubmissions && (
-        <div
-          style={{
-            background: "#1e1e1e",
-            padding: "10px",
-            borderRadius: "8px",
-            marginTop: "10px"
-          }}>
-          <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#888" }}>
-            Your Submissions
-          </h4>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
-            <span>Total:</span>
-            <span style={{ color: "#00ff88" }}>
-              {stats.userSubmissions.total.toLocaleString()}
-            </span>
+        <div className="mt-4">
+          <div className="text-xs font-bold text-white mb-2">
+            {t("popup.yourSubmissions")}
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
-            <span>Accepted:</span>
-            <span style={{ color: "#00ff88" }}>
-              {stats.userSubmissions.accepted.toLocaleString()}
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
-            <span>Pending:</span>
-            <span style={{ color: "#00ff88" }}>
-              {stats.userSubmissions.pending.toLocaleString()}
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
-            <span>Acceptance rate:</span>
-            <span style={{ color: "#00ff88" }}>
-              {stats.userSubmissions.acceptance_rate.toFixed(1)}%
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px"
-            }}>
-            <span>Current streak:</span>
-            <span style={{ color: "#00ff88" }}>
-              {stats.userSubmissions.current_streak}
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between"
-            }}>
-            <span>Best streak:</span>
-            <span style={{ color: "#00ff88" }}>
-              {stats.userSubmissions.best_streak}
-            </span>
+          <div className="grid grid-cols-3 gap-2">
+            <StatCard
+              label={t("popup.total")}
+              value={stats.userSubmissions.total.toLocaleString()}
+            />
+            <StatCard
+              label={t("popup.accepted")}
+              value={stats.userSubmissions.accepted.toLocaleString()}
+            />
+            <StatCard
+              label={t("popup.pending")}
+              value={stats.userSubmissions.pending.toLocaleString()}
+            />
+            <StatCard
+              label={t("popup.acceptanceRate")}
+              value={`${stats.userSubmissions.acceptance_rate.toFixed(1)}%`}
+            />
+            <StatCard
+              label={t("popup.currentStreak")}
+              value={stats.userSubmissions.current_streak}
+            />
+            <StatCard
+              label={t("popup.bestStreak")}
+              value={stats.userSubmissions.best_streak}
+            />
           </div>
         </div>
       )}
 
-      <div style={{ marginTop: "15px", fontSize: "13px", color: "#888" }}>
-        Community Submissions:{" "}
-        <span style={{ color: "#00ff88" }}>
-          {stats.total_submissions.toLocaleString()}
-        </span>
-      </div>
-
       {apiKeyError && (
-        <div
-          style={{
-            marginTop: "12px",
-            padding: "8px 10px",
-            background: "rgba(255, 68, 68, 0.15)",
-            border: "1px solid rgba(255, 68, 68, 0.4)",
-            borderRadius: "8px",
-            fontSize: "12px",
-            color: "#ff8888"
-          }}>
+        <div className="mt-3 p-2.5 bg-red-500/10 border border-red-500/40 rounded-2xl text-xs text-red-300">
           {apiKeyError}
         </div>
       )}
+
+      <div className="mt-4 pt-3">
+        <label className="flex gap-2.5 items-start text-xs text-gray-300">
+          <input
+            type="checkbox"
+            checked={anonymousUsageReportingEnabled}
+            onChange={(event) =>
+              onAnonymousUsageReportingChange(event.target.checked)
+            }
+            className="mt-0.5 accent-green-400"
+          />
+          <span className="leading-snug">
+            <span className="font-bold text-gray-200">
+              {t("popup.anonymousUsageReporting")}
+            </span>
+            <span className="block text-[11px] text-gray-400 mt-1">
+              {t("popup.anonymousUsageReportingDescription")}
+            </span>
+          </span>
+        </label>
+      </div>
     </div>
   )
 }

@@ -1,7 +1,10 @@
+import type { MediaType } from "~/shared/media"
+
 export interface MediaContext {
   title: string
   tmdb_id: number | null
-  type: "tv" | "movie"
+  imdb_id?: string | null
+  type: MediaType
   season: number | null
   episode: number | null
   episode_id: number | null

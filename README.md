@@ -57,6 +57,12 @@ These sites have dedicated extractors for the best experience:
 - `npm run build` – production build.
 - `npm run package` – zip for store submission.
 
+**Popup debug mode**
+
+- The popup includes a hidden debug log for message and player-detection troubleshooting.
+- Double-click the version number in the popup footer to toggle the debug log on or off.
+- The debug log is hidden by default and only appears inside the popup UI when enabled.
+
 **Environment (optional)**  
 Copy `.env.example` to `.env` to set `PLASMO_PUBLIC_TMDB_TOKEN` (for title → TMDB ID lookup) and/or `PLASMO_PUBLIC_INTRODB_API` (default: `https://api.theintrodb.org/v1`). Only `PLASMO_PUBLIC_*` variables are injected.
 

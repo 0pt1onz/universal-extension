@@ -1,4 +1,9 @@
 import type { MediaContext } from "./types"
+import {
+  extractMetaTitle,
+  getFirstBodyLine,
+  parseSeasonEpisodeFromBody
+} from "./utils"
 
 function cleanDisneyTitle(raw: string): string {
   return raw
@@ -7,41 +12,32 @@ function cleanDisneyTitle(raw: string): string {
     .trim()
 }
 
+export function matchDisneyPlus(url: string): boolean {
+  return /^https?:\/\/(www\.)?disneyplus\.com\//i.test(url)
+}
+
 export function extractDisneyPlus(
   url: string,
   documentTitle: string,
   bodyText: string,
   currentTime = 0
 ): MediaContext {
-  const og = document
-    .querySelector('meta[property="og:title"]')
-    ?.getAttribute("content")
-  const tw = document
-    .querySelector('meta[name="twitter:title"]')
-    ?.getAttribute("content")
-
-  let title = og || tw || ""
+  let title = extractMetaTitle()
 
   if (!title || title.toLowerCase().includes("disney+")) {
-    const domMatch = document.body.innerText.match(/^(?:#\s*)?(.+?)(?:\s*\n|$)/)
-    if (domMatch) title = domMatch[1]
+    const domMatch = getFirstBodyLine(bodyText)
+    if (domMatch) title = domMatch
   }
 
   title = cleanDisneyTitle(title)
 
-  const sE =
-    bodyText.match(/S(\d+)\s*E\s*(\d+)/i) ||
-    bodyText.match(/Season\s+(\d+)[,\s]+Episode\s+(\d+)/i)
-  const season = sE ? parseInt(sE[1], 10) : null
-  const episode = sE ? parseInt(sE[2], 10) : null
-
+  const { season, episode } = parseSeasonEpisodeFromBody(bodyText)
   const isTV = Boolean(season || episode)
-  const isMovie = !isTV
 
   return {
     title: title || "Disney+",
     tmdb_id: null,
-    type: isMovie ? "movie" : "tv",
+    type: isTV ? "tv" : "movie",
     season: isTV ? season : null,
     episode: isTV ? episode : null,
     episode_id: null,

@@ -1,124 +1,360 @@
-import { useCallback, useEffect, useState } from "react"
+import "~style.css"
+import "~/i18n/config"
+
+import { useCallback, useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import smallLogo from "url:../assets/small-logo.svg"
 
 import { api, API_URL } from "./popup/api"
+import { ErrorDisplay } from "./popup/ErrorDisplay"
 import { Footer } from "./popup/Footer"
 import { MainPage, type SegmentType } from "./popup/MainPage"
 import { SetupPage } from "./popup/SetupPage"
 import { StatsPage } from "./popup/StatsPage"
-import { formatTime, parseTimeToSeconds } from "./popup/utils"
+import { formatSeconds, formatTime, parseTimeToSeconds } from "./popup/utils"
+import {
+  ANALYTICS_STORAGE_KEY,
+  normalizeAnalyticsEnabled,
+  trackAnalyticsEvent,
+  writeAnonymousUsageReportingEnabled
+} from "./shared/analytics"
+import type { MediaType, PlayerInfoMessage } from "./shared/media"
+
+type ActiveTab = "submit" | "stats"
+type PlayerInfoResponse = PlayerInfoMessage | null
+type ActiveTabPlayerInfoResult =
+  | { state: "missing_tab"; response: null }
+  | { state: "unsupported_page"; response: null }
+  | { state: "message_failed"; response: null; error: string | undefined }
+  | { state: "ok"; response: PlayerInfoResponse }
+
+const ACTIVE_TAB_QUERY = { active: true, currentWindow: true }
+const PLAYER_INFO_MESSAGE = { action: "getPlayerInfo" }
+const POLL_INTERVAL_MS = 5000
+const RECENT_ERROR_WINDOW_MS = 60000
+const UNSUPPORTED_URL_PREFIXES = [
+  "chrome://",
+  "edge://",
+  "about:",
+  "moz-extension://"
+]
+
+function isSupportedTabUrl(url?: string) {
+  return (
+    Boolean(url) &&
+    !UNSUPPORTED_URL_PREFIXES.some((prefix) => url.startsWith(prefix))
+  )
+}
 
 function IndexPopup() {
-  const [view, setView] = useState<"setup" | "main" | "stats">("setup")
+  const { t } = useTranslation()
+  const [activeTab, setActiveTab] = useState<ActiveTab>("submit")
   const [mediaTitle, setMediaTitle] = useState("Detecting...")
   const [mediaMeta, setMediaMeta] = useState("Initializing")
   const [tmdbId, setTmdbId] = useState("")
-  const [mediaType, setMediaType] = useState("movie")
+  const [mediaType, setMediaType] = useState<MediaType>("movie")
   const [season, setSeason] = useState("")
   const [episode, setEpisode] = useState("")
   const [startSec, setStartSec] = useState("")
+  const [endSec, setEndSec] = useState("")
+  const [videoDuration, setVideoDuration] = useState("")
   const [segment, setSegment] = useState<SegmentType>("intro")
   const [status, setStatus] = useState("")
   const [statusColor, setStatusColor] = useState("")
-  const [setupPageKey, setSetupPageKey] = useState("")
+  const [notice, setNotice] = useState("")
+  const [showDebugLogs, setShowDebugLogs] = useState(false)
+  const [debugLogs, setDebugLogs] = useState<string[]>([])
+  const [apiKeyInput, setApiKeyInput] = useState("")
+  const [anonymousUsageReportingEnabled, setAnonymousUsageReportingEnabled] =
+    useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+  const startSecRef = useRef(startSec)
+  const videoDurationRef = useRef(videoDuration)
+  const trackedPopupMediaKeyRef = useRef<string | null>(null)
+  const hasApiKey = apiKeyInput.trim().length > 0
+  const canSubmit =
+    hasApiKey && Number.isFinite(Number(tmdbId)) && Number(tmdbId) > 0
 
-  const loadPlayerInfo = useCallback(async () => {
-    const [tab] = await api.tabs.query({ active: true, currentWindow: true })
-    if (
-      !tab ||
-      tab.url?.startsWith("chrome://") ||
-      tab.url?.startsWith("edge://") ||
-      tab.url?.startsWith("about:") ||
-      tab.url?.startsWith("moz-extension://")
-    ) {
-      setMediaTitle("Cannot run on this page")
-      return
-    }
-    api.tabs.sendMessage(tab.id!, { action: "getPlayerInfo" }, (response) => {
-      if (api.runtime.lastError) {
-        setMediaTitle("Refresh page to sync")
-        return
+  const appendDebugLog = useCallback((message: string) => {
+    console.debug("[popup]", message)
+    setDebugLogs((previousLogs) => {
+      if (previousLogs[0] === message) {
+        return previousLogs
       }
-      if (!response) {
-        setMediaTitle("No Video Detected")
-        return
-      }
-      setTmdbId(String(response.tmdb_id || ""))
-      setMediaType(response.type || "movie")
-      setStartSec(
-        typeof response.currentTime === "number"
-          ? formatTime(response.currentTime)
-          : ""
-      )
-      setMediaTitle(response.title || "Detected")
-      if (response.type === "tv") {
-        setSeason(String(response.season ?? ""))
-        setEpisode(String(response.episode ?? ""))
-        setMediaMeta(
-          response.season && response.episode
-            ? `Season ${response.season} - Episode ${response.episode}`
-            : "TV Series"
-        )
-      } else {
-        setMediaMeta("Feature Film")
-      }
+      return [message, ...previousLogs].slice(0, 6)
     })
   }, [])
 
-  useEffect(() => {
-    api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
-      if (introdb_api_key) {
-        setView("main")
-        loadPlayerInfo()
-      }
-    })
-  }, [loadPlayerInfo])
+  const track = useCallback(
+    (name: string, props?: Record<string, string | number>) => {
+      if (!anonymousUsageReportingEnabled) return
+      trackAnalyticsEvent(name, props)
+    },
+    [anonymousUsageReportingEnabled]
+  )
 
-  useEffect(() => {
-    if (view === "setup") {
-      api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
-        setSetupPageKey(typeof introdb_api_key === "string" ? introdb_api_key : "")
+  const currentMediaProps = useCallback(() => {
+    const tmdbIdNumber = Number(tmdbId)
+    const normalizedTmdbId = Number.isFinite(tmdbIdNumber) ? tmdbIdNumber : 0
+    const normalizedSeason = mediaType === "tv" ? Number(season) || 0 : 0
+    const normalizedEpisode = mediaType === "tv" ? Number(episode) || 0 : 0
+    return {
+      tmdbId: normalizedTmdbId,
+      mediaType,
+      season: normalizedSeason,
+      episode: normalizedEpisode
+    }
+  }, [episode, mediaType, season, tmdbId])
+
+  const getPlayerInfoFromActiveTab = useCallback(async () => {
+    const [tab] = await api.tabs.query(ACTIVE_TAB_QUERY)
+    if (!tab?.id) {
+      appendDebugLog("No active tab id available for popup lookup.")
+      return {
+        state: "missing_tab",
+        response: null
+      } satisfies ActiveTabPlayerInfoResult
+    }
+
+    if (!isSupportedTabUrl(tab.url)) {
+      appendDebugLog(`Unsupported tab URL: ${tab.url}`)
+      return {
+        state: "unsupported_page",
+        response: null
+      } satisfies ActiveTabPlayerInfoResult
+    }
+
+    const result = await new Promise<{
+      response: PlayerInfoResponse
+      error?: string
+    }>((resolve) => {
+      api.tabs.sendMessage(tab.id, PLAYER_INFO_MESSAGE, (message) => {
+        if (api.runtime.lastError) {
+          resolve({
+            response: null,
+            error: api.runtime.lastError.message
+          })
+          return
+        }
+        resolve({ response: message })
+      })
+    })
+
+    if (result.error) {
+      appendDebugLog(`sendMessage failed: ${result.error}`)
+      return {
+        state: "message_failed",
+        response: null,
+        error: result.error
+      } satisfies ActiveTabPlayerInfoResult
+    }
+
+    appendDebugLog("Content script responded to getPlayerInfo.")
+    return {
+      state: "ok",
+      response: result.response
+    } satisfies ActiveTabPlayerInfoResult
+  }, [appendDebugLog])
+
+  const loadPlayerInfo = useCallback(async () => {
+    const { state, response, error } = await getPlayerInfoFromActiveTab()
+
+    if (state === "missing_tab" || state === "unsupported_page") {
+      setNotice("")
+      setMediaTitle(t("errors.cannotRunOnThisPage"))
+      setMediaMeta("")
+      return
+    }
+
+    if (state === "message_failed" || !response) {
+      setNotice(
+        "This tab does not have an active content script yet. Reload the page once to reconnect the extension."
+      )
+      setMediaTitle(t("errors.refreshPageToSync"))
+      setMediaMeta(
+        error ? "The extension needs to reattach to the current tab." : ""
+      )
+      return
+    }
+
+    if (response.available === false) {
+      appendDebugLog(
+        `Player info unavailable${response.reason ? `: ${response.reason}` : "."}`
+      )
+      setNotice("")
+      setMediaTitle(t("errors.notAvailableOnThisPage"))
+      setMediaMeta(t("errors.noHtmlVideoPlayerDetected"))
+      return
+    }
+
+    appendDebugLog(
+      `Detected ${response.type || "movie"}: ${response.title || "Detected"}`
+    )
+    setNotice(
+      response.playerAvailable === false
+        ? t("popup.skippingUnavailableMediaFound")
+        : ""
+    )
+    setTmdbId(String(response.tmdb_id || ""))
+    setMediaType(response.type || "movie")
+
+    const detectedTmdbId = Number(response.tmdb_id || 0)
+    const detectedMediaKey = `${response.type || "movie"}|${detectedTmdbId}|${Number(response.season || 0)}|${Number(response.episode || 0)}`
+    if (trackedPopupMediaKeyRef.current !== detectedMediaKey) {
+      trackedPopupMediaKeyRef.current = detectedMediaKey
+      track("popup_media_detected", {
+        tmdbId: detectedTmdbId,
+        mediaType: response.type || "movie",
+        season: Number(response.season || 0),
+        episode: Number(response.episode || 0),
+        playerAvailable: response.playerAvailable === false ? 0 : 1
       })
     }
-  }, [view])
+
+    if (
+      typeof response.currentTime === "number" &&
+      startSecRef.current.trim() === ""
+    ) {
+      setStartSec(formatTime(response.currentTime))
+    }
+
+    if (
+      typeof response.durationMs === "number" &&
+      videoDurationRef.current.trim() === ""
+    ) {
+      setVideoDuration(formatTime(response.durationMs / 1000))
+    }
+
+    setMediaTitle(response.title || "Detected")
+
+    if (response.type === "tv") {
+      setSeason(String(response.season ?? ""))
+      setEpisode(String(response.episode ?? ""))
+      setMediaMeta(
+        response.season && response.episode
+          ? `${t("media.season")} ${response.season} - ${t("media.episode")} ${response.episode}`
+          : t("media.tvSeries")
+      )
+      return
+    }
+
+    setSeason("")
+    setEpisode("")
+    setMediaMeta(t("media.featureFilm"))
+  }, [appendDebugLog, getPlayerInfoFromActiveTab, t, track])
+
+  useEffect(() => {
+    startSecRef.current = startSec
+  }, [startSec])
+
+  useEffect(() => {
+    videoDurationRef.current = videoDuration
+  }, [videoDuration])
+
+  const loadPlayerInfoRef = useRef(loadPlayerInfo)
+  useEffect(() => {
+    loadPlayerInfoRef.current = loadPlayerInfo
+  })
+
+  useEffect(() => {
+    api.storage.local
+      .get(["introdb_api_key", "error", ANALYTICS_STORAGE_KEY])
+      .then(async (storage) => {
+        const { introdb_api_key, error } = storage
+        const storedApiKey =
+          typeof introdb_api_key === "string" ? introdb_api_key : ""
+
+        setApiKeyInput(storedApiKey)
+        setIsAuthorized(storedApiKey.length > 0)
+        setAnonymousUsageReportingEnabled(
+          normalizeAnalyticsEnabled(storage[ANALYTICS_STORAGE_KEY])
+        )
+
+        if (error && Date.now() - error.time < RECENT_ERROR_WINDOW_MS) {
+          if (error.type === "rate_limited") {
+            const timeString = formatSeconds(error.reset)
+            setErrorMessage(t("errors.rateLimited", { timeString }))
+          } else if (error.type === "api_unreachable") {
+            setErrorMessage(t("errors.apiUnreachable"))
+          }
+          await api.storage.local.remove("error")
+        }
+
+        if (storedApiKey) {
+          await loadPlayerInfoRef.current()
+        }
+      })
+  }, [t])
+
+  useEffect(() => {
+    if (!isAuthorized) return
+    const id = setInterval(() => {
+      loadPlayerInfo()
+    }, POLL_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [isAuthorized, loadPlayerInfo])
 
   async function handleSaveKey() {
-    const key = (
-      document.getElementById("api-key-input") as HTMLInputElement
-    )?.value?.trim()
+    const key = apiKeyInput.trim()
     if (key) {
       await api.storage.local.set({ introdb_api_key: key })
-      setView("main")
-      loadPlayerInfo()
+      setIsAuthorized(true)
+      track("connect_click", currentMediaProps())
+      setActiveTab("submit")
+      await loadPlayerInfo()
     } else {
       await api.storage.local.remove("introdb_api_key")
-      setSetupPageKey("")
+      setApiKeyInput("")
+    }
+  }
+
+  const handleAnonymousUsageReportingChange = async (enabled: boolean) => {
+    setAnonymousUsageReportingEnabled(enabled)
+    await writeAnonymousUsageReportingEnabled(enabled)
+    if (enabled) {
+      trackAnalyticsEvent("analytics_enabled")
     }
   }
 
   async function handleSubmit() {
+    if (!canSubmit) return
+
     const { introdb_api_key } = await api.storage.local.get(["introdb_api_key"])
-    const endSecEl = document.getElementById("end_sec") as HTMLInputElement
-    const endSecRaw = endSecEl?.value?.trim() ?? ""
-    const endSec =
-      endSecRaw === ""
+    const endSecValue =
+      endSec.trim() === ""
         ? segment === "credits" || segment === "preview"
           ? null
           : 0
-        : parseTimeToSeconds(endSecRaw)
+        : parseTimeToSeconds(endSec)
+
+    const videoDurationSecValue =
+      videoDuration.trim() === "" ? null : parseTimeToSeconds(videoDuration)
+    const videoDurationMsValue =
+      typeof videoDurationSecValue === "number" &&
+      Number.isFinite(videoDurationSecValue) &&
+      videoDurationSecValue > 0
+        ? Math.round(videoDurationSecValue * 1000)
+        : null
+
     const payload: Record<string, unknown> = {
       tmdb_id: Number(tmdbId),
       type: mediaType,
       segment,
       start_sec: parseTimeToSeconds(startSec),
-      end_sec: endSec
+      end_sec: endSecValue
+    }
+
+    if (typeof videoDurationMsValue === "number") {
+      payload.video_duration_ms = videoDurationMsValue
     }
     if (mediaType === "tv") {
       payload.season = Number(season)
       payload.episode = Number(episode)
     }
-    setStatus("Submitting...")
+    setStatus(t("status.submitting"))
     try {
+      track("submit_click", { ...currentMediaProps(), segment })
       const res = await fetch(`${API_URL}/submit`, {
         method: "POST",
         headers: {
@@ -128,211 +364,155 @@ function IndexPopup() {
         body: JSON.stringify(payload)
       })
       if (res.ok) {
-        setStatus("Submitted successfully")
-        setStatusColor("#00ff88")
+        track("submit_success", { ...currentMediaProps(), segment })
+        setStatus(t("status.submittedSuccessfully"))
+        setStatusColor("text-green-400")
       } else {
         const errData = await res.json().catch(() => ({}))
         const msg =
           typeof errData?.error === "string"
             ? errData.error
             : errData?.message ?? "Failed"
-        setStatus(`${msg}`)
-        setStatusColor("#ff4444")
+        track("submit_error", { ...currentMediaProps(), segment })
+        setStatus(msg)
+        setStatusColor("text-red-500")
       }
     } catch {
-      setStatus("Connection failed")
-      setStatusColor("#ff4444")
+      track("submit_error", { ...currentMediaProps(), segment })
+      setStatus(t("status.connectionFailed"))
+      setStatusColor("text-red-500")
     }
   }
 
-  function handleClearKey() {
-    api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
-      setSetupPageKey(typeof introdb_api_key === "string" ? introdb_api_key : "")
-      setView("setup")
-    })
+  async function handleDisconnect() {
+    await api.storage.local.remove("introdb_api_key")
+    setIsAuthorized(false)
+    track("disconnect_click", currentMediaProps())
+    setApiKeyInput("")
+    setStatus("")
+    setStatusColor("")
+    setNotice("")
   }
 
-  const goToStats = () => {
-    setView("stats")
+  const fetchCurrentPlayerTimeSec = async () => {
+    const { response } = await getPlayerInfoFromActiveTab()
+    if (!response || response.available === false) return null
+    return typeof response.currentTime === "number"
+      ? response.currentTime
+      : null
   }
 
-  const goToMain = () => {
-    setView("main")
-    api.storage.local.get(["introdb_api_key"]).then(({ introdb_api_key }) => {
-      if (introdb_api_key && view !== "setup") {
-        loadPlayerInfo()
-      }
-    })
+  const handleUsePlayerTimeForStart = async () => {
+    const current = await fetchCurrentPlayerTimeSec()
+    if (typeof current === "number") {
+      setStartSec(formatTime(current))
+    }
+  }
+
+  const handleUsePlayerTimeForEnd = async () => {
+    const current = await fetchCurrentPlayerTimeSec()
+    if (typeof current === "number") {
+      setEndSec(formatTime(current))
+    }
   }
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap');
-        html, body {
-          margin: 0;
-          padding: 0;
-          background: #0a0a0a;
-          color: #fff;
-          box-sizing: border-box;
-          font-family: 'Ubuntu', sans-serif;
-        }
-        *, *::before, *::after { box-sizing: inherit; }
-        
-        .liquid-glass-button {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px 16px;
-          font-size: 14px;
-          font-weight: 500;
-          color: #00ff88; /* Neon green text */
-          background: rgba(25, 25, 25, 0.8);
-          border: 1px solid rgba(0, 255, 136, 0.3);
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          backdrop-filter: blur(10px);
-          box-shadow: 
-             0 0 15px rgba(0, 255, 136, 0.2),
-             inset 0 0 15px rgba(0, 255, 136, 0.1);
-          text-decoration: none;
-        }
-        
-        .liquid-glass-button:hover {
-          background: rgba(30, 30, 30, 0.9);
-          box-shadow: 
-             0 0 20px rgba(0, 255, 136, 0.4),
-             inset 0 0 20px rgba(0, 255, 136, 0.2);
-          transform: translateY(-2px);
-        }
-        
-        .liquid-glass-button:active {
-          transform: translateY(1px);
-          box-shadow: 
-             0 0 10px rgba(0, 255, 136, 0.3),
-             inset 0 0 10px rgba(0, 255, 136, 0.15);
-        }
-        
-        .back-button {
-          background: rgba(100, 100, 100, 0.3);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          color: #ffffff;
-          margin-bottom: 15px;
-        }
-        
-        .back-button:hover {
-           background: rgba(120, 120, 120, 0.4);
-           box-shadow: 
-             0 0 15px rgba(255, 255, 255, 0.2),
-             inset 0 0 15px rgba(255, 255, 255, 0.1);
-        }
-      `}</style>
-      <div
-        style={{
-          boxSizing: "border-box",
-          width: 320,
-          maxWidth: "100%",
-          margin: 0,
-          padding: 0,
-          overflow: "hidden"
-        }}>
-        <div
-          style={{
-            boxSizing: "border-box",
-            width: "100%",
-            padding: "20px",
-            borderTop: "2px solid #00ff88"
-          }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 15
-            }}>
+      <ErrorDisplay message={errorMessage} />
+
+      <div className="box-border w-[480px] max-w-full m-0 p-0 overflow-hidden bg-dark-bg text-white font-ubuntu">
+        <div className="box-border w-full p-5 border-t-2 border-green-400">
+          <div className="flex items-center justify-between mb-4">
             <a
               href="https://theintrodb.org"
               target="_blank"
               rel="noopener noreferrer">
-              <img
-                src={smallLogo}
-                alt="TIDB"
-                style={{ height: 28, width: "auto", display: "block" }}
-              />
+              <img src={smallLogo} alt="TIDB" className="h-7 w-auto block" />
             </a>
-            {view !== "setup" && (
+          </div>
+
+          <div className="flex">
+            <button
+              type="button"
+              onClick={() => setActiveTab("submit")}
+              className={`flex-1 pb-2.5 text-xs font-bold transition-colors ${
+                activeTab === "submit"
+                  ? "text-green-400 border-b-2 border-green-400"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}>
+              {t("popup.title")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("stats")}
+              className={`flex-1 pb-2.5 text-xs font-bold transition-colors ${
+                activeTab === "stats"
+                  ? "text-green-400 border-b-2 border-green-400"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}>
+              {t("navigation.stats")}
+            </button>
+          </div>
+
+          <div className="box-border w-full overflow-hidden bg-[var(--card)] p-4 mt-4 rounded-4xl border-white/5 border-2 shadow-[0_15px_35px_rgba(0,0,0,0.8)]">
+            {activeTab === "submit" && (
               <>
-                {view === "stats" ? (
-              <button
-                onClick={goToMain}
-                className="liquid-glass-button back-button"
-                style={{ fontSize: 14, padding: "6px 12px" }}>
-                &larr; Back
-              </button>
-            ) : (
-              <button
-                onClick={goToStats}
-                className="liquid-glass-button"
-                style={{ fontSize: 16, fontWeight: 700 }}>
-                Stats
-              </button>
+                {!isAuthorized && (
+                  <div>
+                    <p className="text-sm text-white font-bold mb-2 leading-relaxed">
+                      {t("setup.description1")}
+                    </p>
+                    <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+                      {t("setup.description2")}
+                    </p>
+                  </div>
+                )}
+                {isAuthorized ? (
+                  <MainPage
+                    notice={notice}
+                    mediaTitle={mediaTitle}
+                    mediaMeta={mediaMeta}
+                    showDebugLogs={showDebugLogs}
+                    debugLogs={debugLogs}
+                    canSubmit={canSubmit}
+                    segment={segment}
+                    setSegment={setSegment}
+                    startSec={startSec}
+                    setStartSec={setStartSec}
+                    endSec={endSec}
+                    setEndSec={setEndSec}
+                    videoDuration={videoDuration}
+                    setVideoDuration={setVideoDuration}
+                    onUsePlayerTimeForStart={handleUsePlayerTimeForStart}
+                    onUsePlayerTimeForEnd={handleUsePlayerTimeForEnd}
+                    status={status}
+                    statusColor={statusColor}
+                    onSubmit={handleSubmit}
+                    onDisconnect={handleDisconnect}
+                  />
+                ) : (
+                  <SetupPage
+                    apiKey={apiKeyInput}
+                    onApiKeyChange={setApiKeyInput}
+                    onSaveKey={handleSaveKey}
+                  />
+                )}
+              </>
             )}
-            </>
-            )}
-          </div>
-
-          {view === "setup" && (
-            <p
-              style={{
-                display: "block",
-                fontSize: 12,
-                color: "grey",
-                fontWeight: 700,
-                marginBottom: 14
-              }}>
-              You&apos;re getting skip segments from TheIntroDB!
-              <br />
-              <br />
-              Optionally, you can enter your API key to submit new segments and
-              skip using your still pending segments!
-            </p>
-          )}
-
-          <div
-            style={{
-              boxSizing: "border-box",
-              width: "100%",
-              overflow: "hidden",
-              background: "rgba(25, 25, 25, 0.8)",
-              padding: 18,
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 15px 35px rgba(0,0,0,0.6)"
-            }}>
-            {view === "setup" && (
-              <SetupPage
-                initialKey={setupPageKey}
-                onSaveKey={handleSaveKey}
+            {activeTab === "stats" && (
+              <StatsPage
+                anonymousUsageReportingEnabled={anonymousUsageReportingEnabled}
+                onAnonymousUsageReportingChange={
+                  handleAnonymousUsageReportingChange
+                }
               />
             )}
-            {view === "main" && (
-              <MainPage
-                mediaTitle={mediaTitle}
-                mediaMeta={mediaMeta}
-                segment={segment}
-                setSegment={setSegment}
-                startSec={startSec}
-                setStartSec={setStartSec}
-                status={status}
-                statusColor={statusColor}
-                onSubmit={handleSubmit}
-                onDisconnect={handleClearKey}
-              />
-            )}
-            {view === "stats" && <StatsPage />}
           </div>
-          <Footer />
+          <Footer
+            onVersionDoubleClick={() =>
+              setShowDebugLogs((currentValue) => !currentValue)
+            }
+          />
         </div>
       </div>
     </>
