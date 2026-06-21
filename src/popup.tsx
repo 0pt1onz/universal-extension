@@ -3,9 +3,15 @@ import "~/i18n/config"
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
+import "~style.css"
+import "~/i18n/config"
+
+import { useCallback, useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 import smallLogo from "url:../assets/small-logo.svg"
 
 import { api, API_URL } from "./popup/api"
+import { ErrorDisplay } from "./popup/ErrorDisplay"
 import { ErrorDisplay } from "./popup/ErrorDisplay"
 import { Footer } from "./popup/Footer"
 import { MainPage, type SegmentType } from "./popup/MainPage"
@@ -50,13 +56,18 @@ function isSupportedTabUrl(url?: string) {
 function IndexPopup() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<ActiveTab>("submit")
+  const { t } = useTranslation()
+  const [activeTab, setActiveTab] = useState<ActiveTab>("submit")
   const [mediaTitle, setMediaTitle] = useState("Detecting...")
   const [mediaMeta, setMediaMeta] = useState("Initializing")
   const [tmdbId, setTmdbId] = useState("")
   const [mediaType, setMediaType] = useState<MediaType>("movie")
+  const [mediaType, setMediaType] = useState<MediaType>("movie")
   const [season, setSeason] = useState("")
   const [episode, setEpisode] = useState("")
   const [startSec, setStartSec] = useState("")
+  const [endSec, setEndSec] = useState("")
+  const [videoDuration, setVideoDuration] = useState("")
   const [endSec, setEndSec] = useState("")
   const [videoDuration, setVideoDuration] = useState("")
   const [segment, setSegment] = useState<SegmentType>("intro")
@@ -170,8 +181,95 @@ function IndexPopup() {
       setNotice("")
       setMediaTitle(t("errors.cannotRunOnThisPage"))
       setMediaMeta("")
+    const { state, response, error } = await getPlayerInfoFromActiveTab()
+
+    if (state === "missing_tab" || state === "unsupported_page") {
+      setNotice("")
+      setMediaTitle(t("errors.cannotRunOnThisPage"))
+      setMediaMeta("")
       return
     }
+
+    if (state === "message_failed" || !response) {
+      setNotice(
+        "This tab does not have an active content script yet. Reload the page once to reconnect the extension."
+      )
+      setMediaTitle(t("errors.refreshPageToSync"))
+      setMediaMeta(
+        error ? "The extension needs to reattach to the current tab." : ""
+      )
+      return
+    }
+
+    if (response.available === false) {
+      appendDebugLog(
+        `Player info unavailable${response.reason ? `: ${response.reason}` : "."}`
+      )
+      setNotice("")
+      setMediaTitle(t("errors.notAvailableOnThisPage"))
+      setMediaMeta(t("errors.noHtmlVideoPlayerDetected"))
+      return
+    }
+
+    appendDebugLog(
+      `Detected ${response.type || "movie"}: ${response.title || "Detected"}`
+    )
+    setNotice(
+      response.playerAvailable === false
+        ? t("popup.skippingUnavailableMediaFound")
+        : ""
+    )
+    setTmdbId(String(response.tmdb_id || ""))
+    setMediaType(response.type || "movie")
+
+    const detectedTmdbId = Number(response.tmdb_id || 0)
+    const detectedMediaKey = `${response.type || "movie"}|${detectedTmdbId}|${Number(response.season || 0)}|${Number(response.episode || 0)}`
+    if (trackedPopupMediaKeyRef.current !== detectedMediaKey) {
+      trackedPopupMediaKeyRef.current = detectedMediaKey
+      track("popup_media_detected", {
+        tmdbId: detectedTmdbId,
+        mediaType: response.type || "movie",
+        season: Number(response.season || 0),
+        episode: Number(response.episode || 0),
+        playerAvailable: response.playerAvailable === false ? 0 : 1
+      })
+    }
+
+    if (
+      typeof response.currentTime === "number" &&
+      startSecRef.current.trim() === ""
+    ) {
+      setStartSec(formatTime(response.currentTime))
+    }
+
+    if (
+      typeof response.durationMs === "number" &&
+      videoDurationRef.current.trim() === ""
+    ) {
+      setVideoDuration(formatTime(response.durationMs / 1000))
+    }
+
+    setMediaTitle(response.title || "Detected")
+
+    if (response.type === "tv") {
+      setSeason(String(response.season ?? ""))
+      setEpisode(String(response.episode ?? ""))
+      setMediaMeta(
+        response.season && response.episode
+          ? `${t("media.season")} ${response.season} - ${t("media.episode")} ${response.episode}`
+          : t("media.tvSeries")
+      )
+      return
+    }
+
+    setSeason("")
+    setEpisode("")
+    setMediaMeta(t("media.featureFilm"))
+  }, [appendDebugLog, getPlayerInfoFromActiveTab, t, track])
+
+  useEffect(() => {
+    startSecRef.current = startSec
+  }, [startSec])
 
     if (state === "message_failed" || !response) {
       setNotice(
@@ -262,6 +360,13 @@ function IndexPopup() {
   useEffect(() => {
     loadPlayerInfoRef.current = loadPlayerInfo
   })
+    videoDurationRef.current = videoDuration
+  }, [videoDuration])
+
+  const loadPlayerInfoRef = useRef(loadPlayerInfo)
+  useEffect(() => {
+    loadPlayerInfoRef.current = loadPlayerInfo
+  })
 
   useEffect(() => {
     api.storage.local
@@ -320,8 +425,13 @@ function IndexPopup() {
 
   async function handleSaveKey() {
     const key = apiKeyInput.trim()
+    const key = apiKeyInput.trim()
     if (key) {
       await api.storage.local.set({ introdb_api_key: key })
+      setIsAuthorized(true)
+      track("connect_click", currentMediaProps())
+      setActiveTab("submit")
+      await loadPlayerInfo()
       setIsAuthorized(true)
       track("connect_click", currentMediaProps())
       setActiveTab("submit")
@@ -382,12 +492,27 @@ function IndexPopup() {
   async function handleSubmit() {
     if (!canSubmit) return
 
+    if (!canSubmit) return
+
     const { introdb_api_key } = await api.storage.local.get(["introdb_api_key"])
+    const endSecValue =
+      endSec.trim() === ""
     const endSecValue =
       endSec.trim() === ""
         ? segment === "credits" || segment === "preview"
           ? null
           : 0
+        : parseTimeToSeconds(endSec)
+
+    const videoDurationSecValue =
+      videoDuration.trim() === "" ? null : parseTimeToSeconds(videoDuration)
+    const videoDurationMsValue =
+      typeof videoDurationSecValue === "number" &&
+      Number.isFinite(videoDurationSecValue) &&
+      videoDurationSecValue > 0
+        ? Math.round(videoDurationSecValue * 1000)
+        : null
+
         : parseTimeToSeconds(endSec)
 
     const videoDurationSecValue =
@@ -409,13 +534,20 @@ function IndexPopup() {
 
     if (typeof videoDurationMsValue === "number") {
       payload.video_duration_ms = videoDurationMsValue
+      end_sec: endSecValue
+    }
+
+    if (typeof videoDurationMsValue === "number") {
+      payload.video_duration_ms = videoDurationMsValue
     }
     if (mediaType === "tv") {
       payload.season = Number(season)
       payload.episode = Number(episode)
     }
     setStatus(t("status.submitting"))
+    setStatus(t("status.submitting"))
     try {
+      track("submit_click", { ...currentMediaProps(), segment })
       track("submit_click", { ...currentMediaProps(), segment })
       const res = await fetch(`${API_URL}/submit`, {
         method: "POST",
@@ -429,6 +561,9 @@ function IndexPopup() {
         track("submit_success", { ...currentMediaProps(), segment })
         setStatus(t("status.submittedSuccessfully"))
         setStatusColor("text-green-400")
+        track("submit_success", { ...currentMediaProps(), segment })
+        setStatus(t("status.submittedSuccessfully"))
+        setStatusColor("text-green-400")
       } else {
         const errData = await res.json().catch(() => ({}))
         const msg =
@@ -438,8 +573,14 @@ function IndexPopup() {
         track("submit_error", { ...currentMediaProps(), segment })
         setStatus(msg)
         setStatusColor("text-red-500")
+        track("submit_error", { ...currentMediaProps(), segment })
+        setStatus(msg)
+        setStatusColor("text-red-500")
       }
     } catch {
+      track("submit_error", { ...currentMediaProps(), segment })
+      setStatus(t("status.connectionFailed"))
+      setStatusColor("text-red-500")
       track("submit_error", { ...currentMediaProps(), segment })
       setStatus(t("status.connectionFailed"))
       setStatusColor("text-red-500")
@@ -582,6 +723,50 @@ function IndexPopup() {
                   />
                 )}
               </>
+          <div className="box-border w-full overflow-hidden bg-[var(--card)] p-4 mt-4 rounded-4xl border-white/5 border-2 shadow-[0_15px_35px_rgba(0,0,0,0.8)]">
+            {activeTab === "submit" && (
+              <>
+                {!isAuthorized && (
+                  <div>
+                    <p className="text-sm text-white font-bold mb-2 leading-relaxed">
+                      {t("setup.description1")}
+                    </p>
+                    <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+                      {t("setup.description2")}
+                    </p>
+                  </div>
+                )}
+                {isAuthorized ? (
+                  <MainPage
+                    notice={notice}
+                    mediaTitle={mediaTitle}
+                    mediaMeta={mediaMeta}
+                    showDebugLogs={showDebugLogs}
+                    debugLogs={debugLogs}
+                    canSubmit={canSubmit}
+                    segment={segment}
+                    setSegment={setSegment}
+                    startSec={startSec}
+                    setStartSec={setStartSec}
+                    endSec={endSec}
+                    setEndSec={setEndSec}
+                    videoDuration={videoDuration}
+                    setVideoDuration={setVideoDuration}
+                    onUsePlayerTimeForStart={handleUsePlayerTimeForStart}
+                    onUsePlayerTimeForEnd={handleUsePlayerTimeForEnd}
+                    status={status}
+                    statusColor={statusColor}
+                    onSubmit={handleSubmit}
+                    onDisconnect={handleDisconnect}
+                  />
+                ) : (
+                  <SetupPage
+                    apiKey={apiKeyInput}
+                    onApiKeyChange={setApiKeyInput}
+                    onSaveKey={handleSaveKey}
+                  />
+                )}
+              </>
             )}
             {activeTab === "stats" && <StatsPage />}
             {activeTab === "settings" && (
@@ -599,6 +784,11 @@ function IndexPopup() {
               />
             )}
           </div>
+          <Footer
+            onVersionDoubleClick={() =>
+              setShowDebugLogs((currentValue) => !currentValue)
+            }
+          />
           <Footer
             onVersionDoubleClick={() =>
               setShowDebugLogs((currentValue) => !currentValue)

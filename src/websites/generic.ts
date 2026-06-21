@@ -31,7 +31,9 @@ export async function extractGeneric(
   bodyText: string,
   currentTime = 0
 ): Promise<MediaContext> {
+): Promise<MediaContext> {
   let tmdb_id: number | null = null
+  let imdb_id: string | null = null
   let imdb_id: string | null = null
   let season: number | null = null
   let episode: number | null = null
@@ -313,6 +315,7 @@ export async function extractGeneric(
   // G. Return
   // --------------------------------------------------------------------------
   return {
+    title: title || "Untitled",
     title: title || "Untitled",
     tmdb_id,
     imdb_id,

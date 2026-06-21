@@ -147,45 +147,35 @@ export function MainPage({
         />
       </div>
 
-      {/* Danger Zone — Disconnect Token */}
-      <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/[0.03] p-4 pb-3">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500/60" />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-red-400/80">
-            {t("settings.dangerZone")}
-          </span>
-        </div>
-        <Button
-          type="button"
-          variant="glass"
-          size="sm"
-          onClick={onDisconnect}
-          className="w-full text-red-500 hover:text-red-500 border border-red-800 bg-red-800/10 hover:bg-red-800/20 hover:border-red-800/75">
-          {t("popup.disconnectToken")}
-        </Button>
-      </div>
-
-      <div className="pt-4">
-        <Button
-          type="button"
-          variant="glass"
-          size="sm"
-          onClick={onSubmit}
-          disabled={!canSubmit}
-          className={`w-full rounded-4xl ${
-            canSubmit
-              ? "cursor-pointer text-green-400 hover:text-green-400 border-green-400/30 bg-green-400/10 hover:bg-green-400/20"
-              : "cursor-not-allowed text-gray-500 hover:text-gray-300"
-          }`}>
-          {t("popup.submit")} →
-        </Button>
-        {status && (
-          <div
-            id="status"
-            className={`text-xs text-center mt-2.5 min-h-[1.2em] ${statusColor}`}>
-            {status}
-          </div>
-        )}
+      <button
+        type="button"
+        onClick={onSubmit}
+        style={{
+          background: "#00ff88",
+          color: "#000",
+          border: "none",
+          padding: 14,
+          width: "100%",
+          cursor: "pointer",
+          borderRadius: 6,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          fontSize: 11,
+          letterSpacing: "1px",
+          marginTop: 5
+        }}>
+        Accept
+      </button>
+      <div
+        id="status"
+        style={{
+          fontSize: 10,
+          textAlign: "center",
+          marginTop: 10,
+          minHeight: "1.2em",
+          color: statusColor
+        }}>
+        {status}
       </div>
     </>
   )

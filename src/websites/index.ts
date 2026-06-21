@@ -29,11 +29,15 @@ const SITE_EXTRACTORS: Array<{
     bodyText: string,
     currentTime?: number
   ) => Promise<MediaContext> | MediaContext
+  ) => Promise<MediaContext> | MediaContext
 }> = [
   { match: matchNetflix, extract: extractNetflix },
   { match: matchHBOMax, extract: extractHBOMax },
   { match: matchMax, extract: extractMax },
+  { match: matchMax, extract: extractMax },
   { match: matchAppleTV, extract: extractAppleTV },
+  { match: matchDisneyPlus, extract: extractDisneyPlus },
+  { match: matchHulu, extract: extractHulu },
   { match: matchDisneyPlus, extract: extractDisneyPlus },
   { match: matchHulu, extract: extractHulu },
   { match: matchParamountPlus, extract: extractParamountPlus },
@@ -57,9 +61,13 @@ export async function extractMediaContext(
   bodyText: string,
   currentTime = 0
 ): Promise<MediaContext> {
+): Promise<MediaContext> {
   const entry = SITE_EXTRACTORS.find((e) =>
     typeof e.match === "function" ? e.match(url) : e.match.test(url)
   )
+  if (entry) {
+    return entry.extract(url, documentTitle, bodyText, currentTime)
+  }
   if (entry) {
     return entry.extract(url, documentTitle, bodyText, currentTime)
   }
